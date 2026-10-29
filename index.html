@@ -105,10 +105,20 @@ body { background: var(--space); color: var(--ink); font-family: var(--mono); ov
 .phy-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: calc(12px + env(safe-area-inset-top, 0px)) 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); border-bottom: 1px solid var(--line); }
 .phy-head .eyebrow { margin: 0 0 2px; }
 .phy-head h2 { font-family: var(--display); font-weight: 700; font-size: clamp(20px, 3.4vw, 28px); margin: 0; letter-spacing: .02em; text-wrap: balance; }
-.phy-nav { flex: none; display: flex; gap: 6px; overflow-x: auto; padding-block: 8px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); border-bottom: 1px solid var(--line); scrollbar-width: thin; }
-.chip { flex: none; appearance: none; border: 1px solid var(--line); background: transparent; color: var(--dim); font-family: var(--mono); font-size: 11.5px; padding: 6px 10px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
-.chip:hover, .chip:focus-visible { color: var(--ink); border-color: var(--cyan); outline: none; }
-.phy-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-block: 28px calc(60px + env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.phy-actions { display: flex; gap: 8px; flex: none; }
+.phy-body { flex: 1; min-height: 0; display: flex; position: relative; }
+.phy-toc { flex: none; width: 290px; overflow-y: auto; border-right: 1px solid var(--line); background: #060a12; padding-block: 22px calc(22px + env(safe-area-inset-bottom, 0px)); padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: 12px; scrollbar-width: thin; }
+.toc-title { font-family: var(--display); font-weight: 600; font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--amber); margin: 0 10px 10px; }
+.phy-toc ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.toc-item { appearance: none; width: 100%; display: grid; grid-template-columns: 24px 1fr; gap: 8px; align-items: baseline; text-align: left; background: transparent; border: 0; border-radius: 4px; padding: 8px 10px; color: var(--dim); font-family: var(--sans); font-size: 14px; line-height: 1.4; cursor: pointer; }
+.toc-item:hover { color: var(--ink); background: rgba(255,255,255,.035); }
+.toc-item:focus-visible { outline: 2px solid var(--amber); outline-offset: -2px; }
+.toc-item.active { color: #fff; background: rgba(255,181,71,.11); }
+.toc-n { font-family: var(--mono); font-size: 12px; color: var(--dim); text-align: right; }
+.toc-item.active .toc-n { color: var(--amber); }
+.toc-toggle { display: none; }
+.toc-scrim { position: absolute; inset: 0; z-index: 2; background: rgba(2, 4, 10, .6); }
+.phy-scroll { min-width: 0; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-block: 28px calc(60px + env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 .phy-article { max-width: 760px; margin: 0 auto; font-family: var(--sans); font-size: 16.5px; line-height: 1.7; color: var(--ink); }
 .phy-article p { margin: 0 0 14px; }
 .phy-article .lead { font-size: 18.5px; line-height: 1.6; color: var(--ink); margin-bottom: 30px; }
@@ -163,6 +173,9 @@ figcaption b { color: var(--ink); }
   .phy-article { font-size: 15.5px; }
   .eq-m { font-size: 18px; }
   .phy-head .btn kbd { display: none; }
+  .toc-toggle { display: inline-block; }
+  .phy-toc { position: absolute; top: 0; bottom: 0; left: 0; z-index: 3; width: min(300px, 86vw); transform: translateX(-100%); transition: transform .22s ease; box-shadow: 8px 0 30px rgba(0,0,0,.5); visibility: hidden; }
+  .phy-toc.open { transform: none; visibility: visible; }
   figure { padding: 8px; overflow-x: auto; }
   .fig { min-width: 560px; }
   .phy-head .btn { white-space: nowrap; }
@@ -180,7 +193,7 @@ figcaption b { color: var(--ink); }
   #tools { flex-direction: column; }
   .stats { grid-template-columns: 1fr; }
 }
-@media (prefers-reduced-motion: reduce) { #toast { transition: none; } }
+@media (prefers-reduced-motion: reduce) { #toast, .phy-toc { transition: none; } }
 </style>
 </head>
 <body>
@@ -253,13 +266,21 @@ figcaption b { color: var(--ink); }
 </defs></svg>
     <header class="phy-head">
       <div><p class="eyebrow">Manual do piloto</p><h2 id="phyTitle">A física por trás do jogo</h2></div>
-      <button class="btn" id="phyClose"><kbd>Esc</kbd>Voltar ao jogo</button>
+      <div class="phy-actions">
+        <button class="btn toc-toggle" id="tocToggle" aria-expanded="false" aria-controls="phyToc">Índice</button>
+        <button class="btn" id="phyClose"><kbd>Esc</kbd>Voltar ao jogo</button>
+      </div>
     </header>
-    <nav class="phy-nav" aria-label="Seções"><button class="chip" data-target="phy-inercia">1. Sem atrito, sem freio</button><button class="chip" data-target="phy-acao">2. Ação e reação: como um jato empurra</button><button class="chip" data-target="phy-newton2">3. Acelerar e frear: a segunda lei</button><button class="chip" data-target="phy-torque">4. Girar: torque e momento de inércia</button><button class="chip" data-target="phy-referencial">5. Jatos presos no casco: o referencial do módulo</button><button class="chip" data-target="phy-simulacao">6. Como o computador simula tudo isso</button><button class="chip" data-target="phy-colisoes">7. Colisões e conservação do momento</button><button class="chip" data-target="phy-giro">8. Choques fora do centro fazem girar</button><button class="chip" data-target="phy-acoplamento">9. Acoplamento: por que tão devagar?</button><button class="chip" data-target="phy-gravidade">10. E a gravidade? Tudo cai junto</button><button class="chip" data-target="phy-numeros">11. Os números do jogo</button></nav>
-    <div class="phy-scroll" id="phyScroll">
-      <article class="phy-article">
-        <p class="lead">Encaixar um módulo numa estação espacial parece fácil até você tentar. Aqui está toda a física que o jogo calcula, passo a passo. Você só precisa de um pouco de álgebra e trigonometria do ensino médio.</p>
-        <section class="phy-sec" id="phy-inercia"><h3><span class="secn">1</span>Sem atrito, sem freio</h3>
+    <div class="phy-body">
+      <nav class="phy-toc" id="phyToc" aria-label="Índice do manual">
+        <p class="toc-title">Índice</p>
+        <ol><li><button class="toc-item" data-target="phy-inercia"><span class="toc-n">1</span><span>Sem atrito, sem freio</span></button></li><li><button class="toc-item" data-target="phy-acao"><span class="toc-n">2</span><span>Ação e reação: como um jato empurra</span></button></li><li><button class="toc-item" data-target="phy-newton2"><span class="toc-n">3</span><span>Acelerar e frear: a segunda lei</span></button></li><li><button class="toc-item" data-target="phy-torque"><span class="toc-n">4</span><span>Girar: torque e momento de inércia</span></button></li><li><button class="toc-item" data-target="phy-referencial"><span class="toc-n">5</span><span>Jatos presos no casco: o referencial do módulo</span></button></li><li><button class="toc-item" data-target="phy-simulacao"><span class="toc-n">6</span><span>Como o computador simula tudo isso</span></button></li><li><button class="toc-item" data-target="phy-colisoes"><span class="toc-n">7</span><span>Colisões e conservação do momento</span></button></li><li><button class="toc-item" data-target="phy-giro"><span class="toc-n">8</span><span>Choques fora do centro fazem girar</span></button></li><li><button class="toc-item" data-target="phy-acoplamento"><span class="toc-n">9</span><span>Acoplamento: por que tão devagar?</span></button></li><li><button class="toc-item" data-target="phy-gravidade"><span class="toc-n">10</span><span>E a gravidade? Tudo cai junto</span></button></li><li><button class="toc-item" data-target="phy-numeros"><span class="toc-n">11</span><span>Os números do jogo</span></button></li></ol>
+      </nav>
+      <div class="toc-scrim" id="tocScrim" hidden></div>
+      <div class="phy-scroll" id="phyScroll">
+        <article class="phy-article">
+          <p class="lead">Encaixar um módulo numa estação espacial parece fácil até você tentar. Aqui está toda a física que o jogo calcula, passo a passo. Você só precisa de um pouco de álgebra e trigonometria do ensino médio.</p>
+          <section class="phy-sec" id="phy-inercia"><h3><span class="secn">1</span>Sem atrito, sem freio</h3>
 <p>Na Terra, quase tudo que se move acaba parando sozinho. Um carrinho de supermercado empurrado e solto rola um pouco e para. Parece natural, mas quem freia o carrinho é o <b>atrito</b> (com o chão e com o ar). Tire o atrito e o carrinho nunca mais para.</p>
 <p>É exatamente isso que acontece no espaço. Lá não há chão nem ar para frear o módulo. Isaac Newton resumiu esse comportamento na sua <b>primeira lei</b>, a lei da inércia:</p>
 <blockquote>Um corpo continua parado, ou continua andando em linha reta com velocidade constante, até que uma força mude isso.</blockquote>
@@ -395,8 +416,9 @@ A 0,8 m/s: <i>E</i><sub>c</sub> = ½ × 9 000 × 0,8² = <b>2 880 J</b>, como so
 <div class="eq"><div class="eq-m">Δ<i>v</i> = <i>v</i><sub>e</sub> · ln <span class="fr"><span><i>m</i><sub>inicial</sub></span><span><i>m</i><sub>final</sub></span></span></div><span class="eq-n">(25)</span></div>
 Gás frio, como nitrogênio, sai a cerca de 700 m/s, bem mais devagar que o escape de um motor de foguete. Por isso cada toque nos jatos custa caro, e pilotar com economia faz parte do desafio.</div>
 </section>
-        <p class="end">Pronto para tentar de novo? <button class="cta" id="phyBack">Voltar ao jogo</button></p>
-      </article>
+          <p class="end">Pronto para tentar de novo? <button class="cta" id="phyBack">Voltar ao jogo</button></p>
+        </article>
+      </div>
     </div>
   </section>
 
@@ -1206,10 +1228,12 @@ function openPhysics() {
   input.keys.clear(); input.pad.clear(); input.pointer = null;
   if (state === 'play' && !paused) { togglePause(); phyAutoPaused = true; el.toast.classList.remove('show'); }
   phy.hidden = false;
+  spy();
   $('phyClose').focus();
 }
 function closePhysics() {
   if (phy.hidden) return;
+  setToc(false);
   phy.hidden = true;
   if (phyAutoPaused && paused && state === 'play') togglePause();
   phyAutoPaused = false;
@@ -1222,13 +1246,36 @@ overlay.addEventListener('click', e => { if (e.target.closest('[data-phy]')) ope
 $('phyClose').addEventListener('click', closePhysics);
 $('phyBack').addEventListener('click', closePhysics);
 const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-for (const c of phy.querySelectorAll('.chip')) c.addEventListener('click', () => {
-  const t = document.getElementById(c.dataset.target); if (t) t.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+// índice lateral: navegação, gaveta no celular e destaque da seção visível
+const toc = $('phyToc'), tocScrim = $('tocScrim'), tocBtn = $('tocToggle'), phyScroll = $('phyScroll');
+const tocItems = [...toc.querySelectorAll('.toc-item')];
+const phySecs = tocItems.map(b => document.getElementById(b.dataset.target));
+function setToc(open) { toc.classList.toggle('open', open); tocScrim.hidden = !open; tocBtn.setAttribute('aria-expanded', String(open)); if (open) (toc.querySelector('.toc-item.active') || tocItems[0]).focus(); }
+tocBtn.addEventListener('click', () => setToc(!toc.classList.contains('open')));
+tocScrim.addEventListener('click', () => setToc(false));
+for (const b of tocItems) b.addEventListener('click', () => {
+  const t = document.getElementById(b.dataset.target);
+  if (t) t.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+  setToc(false);
 });
+let spyQueued = false;
+function spy() {
+  spyQueued = false;
+  const top = phyScroll.getBoundingClientRect().top;
+  let cur = 0;
+  phySecs.forEach((sec, k) => { if (sec.getBoundingClientRect().top - top <= 140) cur = k; });
+  if (phyScroll.scrollTop + phyScroll.clientHeight >= phyScroll.scrollHeight - 4) cur = phySecs.length - 1;
+  tocItems.forEach((b, k) => { const on = k === cur; b.classList.toggle('active', on); if (on) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current'); });
+}
+phyScroll.addEventListener('scroll', () => { if (!spyQueued) { spyQueued = true; requestAnimationFrame(spy); } }, { passive: true });
 
 // ---------------------------------------------------------------- input
 window.addEventListener('keydown', e => {
-  if (!phy.hidden) { if (e.code === 'Escape' || e.code === 'KeyF') { e.preventDefault(); closePhysics(); } return; }
+  if (!phy.hidden) {
+    if (e.code === 'Escape' && toc.classList.contains('open')) { e.preventDefault(); setToc(false); tocBtn.focus(); }
+    else if (e.code === 'Escape' || e.code === 'KeyF') { e.preventDefault(); closePhysics(); }
+    return;
+  }
   if (e.code === 'KeyF') { openPhysics(); return; }
   if (KEYMAP[e.code]) { input.keys.add(e.code); e.preventDefault(); }
   else if (e.code === 'KeyR' && state !== 'intro') start();

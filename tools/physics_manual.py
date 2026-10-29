@@ -413,22 +413,31 @@ Gás frio, como nitrogênio, sai a cerca de 700 m/s, bem mais devagar que o esca
 '''))
 
 def build():
-    nav = ''.join(f'<button class="chip" data-target="phy-{sid}">{k+1}. {title}</button>' for k, (sid, title, _) in enumerate(S))
+    nav = ''.join(f'<li><button class="toc-item" data-target="phy-{sid}"><span class="toc-n">{k+1}</span><span>{title}</span></button></li>' for k, (sid, title, _) in enumerate(S))
     secs = ''.join(f'<section class="phy-sec" id="phy-{sid}"><h3><span class="secn">{k+1}</span>{title}</h3>{body}</section>' for k, (sid, title, body) in enumerate(S))
     return f'''
   <section id="physics" hidden role="dialog" aria-modal="true" aria-labelledby="phyTitle">
     {DEFS}
     <header class="phy-head">
       <div><p class="eyebrow">Manual do piloto</p><h2 id="phyTitle">A física por trás do jogo</h2></div>
-      <button class="btn" id="phyClose"><kbd>Esc</kbd>Voltar ao jogo</button>
+      <div class="phy-actions">
+        <button class="btn toc-toggle" id="tocToggle" aria-expanded="false" aria-controls="phyToc">Índice</button>
+        <button class="btn" id="phyClose"><kbd>Esc</kbd>Voltar ao jogo</button>
+      </div>
     </header>
-    <nav class="phy-nav" aria-label="Seções">{nav}</nav>
-    <div class="phy-scroll" id="phyScroll">
-      <article class="phy-article">
-        <p class="lead">Encaixar um módulo numa estação espacial parece fácil até você tentar. Aqui está toda a física que o jogo calcula, passo a passo. Você só precisa de um pouco de álgebra e trigonometria do ensino médio.</p>
-        {secs}
-        <p class="end">Pronto para tentar de novo? <button class="cta" id="phyBack">Voltar ao jogo</button></p>
-      </article>
+    <div class="phy-body">
+      <nav class="phy-toc" id="phyToc" aria-label="Índice do manual">
+        <p class="toc-title">Índice</p>
+        <ol>{nav}</ol>
+      </nav>
+      <div class="toc-scrim" id="tocScrim" hidden></div>
+      <div class="phy-scroll" id="phyScroll">
+        <article class="phy-article">
+          <p class="lead">Encaixar um módulo numa estação espacial parece fácil até você tentar. Aqui está toda a física que o jogo calcula, passo a passo. Você só precisa de um pouco de álgebra e trigonometria do ensino médio.</p>
+          {secs}
+          <p class="end">Pronto para tentar de novo? <button class="cta" id="phyBack">Voltar ao jogo</button></p>
+        </article>
+      </div>
     </div>
   </section>
 '''
