@@ -1,0 +1,1308 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>[hidden]{display:none!important} body{margin:0}</style>
+<title>Acoplamento ISS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400&family=STIX+Two+Text:ital,wght@0,400;1,400&display=swap">
+<style>
+/* Layout: tela cheia de jogo; HUD de controle de missão nos cantos, sobre a cena 3D */
+:root {
+  color-scheme: dark;
+  --space: #04060c;
+  --panel: rgba(8, 14, 26, 0.72);
+  --line: rgba(150, 190, 230, 0.18);
+  --ink: #dbe7f5;
+  --dim: #7f93ab;
+  --amber: #ffb547;
+  --cyan: #7fe3ff;
+  --ok: #5df2a0;
+  --bad: #ff6262;
+  --display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --math: "STIX Two Text", "Cambria Math", "Times New Roman", serif;
+  --rose: #ff8fbf;
+  --paper: #070b14;
+  --line2: rgba(150, 190, 230, 0.10);
+}
+html, body { height: 100%; }
+body { background: var(--space); color: var(--ink); font-family: var(--mono); overflow: hidden; }
+#app { position: fixed; inset: 0; user-select: none; -webkit-user-select: none; touch-action: none; }
+#c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+
+.hud { position: absolute; pointer-events: none; font-size: 12px; font-variant-numeric: tabular-nums; }
+.panel { box-sizing: border-box; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.eyebrow { font-family: var(--display); font-weight: 600; font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--amber); margin: 0 0 8px; }
+
+#tele { top: calc(14px + env(safe-area-inset-top, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); width: 230px; }
+#crit { top: calc(14px + env(safe-area-inset-top, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); width: 236px; }
+.row { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; }
+.row span:first-child { color: var(--dim); }
+.row b { font-weight: 500; color: var(--cyan); }
+.fuel { margin-top: 8px; }
+.bar { height: 6px; background: rgba(255,255,255,.08); border-radius: 3px; overflow: hidden; margin-top: 4px; }
+.bar i { display: block; height: 100%; width: 100%; background: var(--cyan); transition: background .3s; }
+.crow { display: grid; grid-template-columns: 10px 1fr auto; align-items: center; gap: 8px; padding: 2px 0; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--bad); box-shadow: 0 0 6px var(--bad); }
+.crow.ok .dot { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+.crow span { color: var(--dim); }
+.crow em { font-style: normal; color: var(--ink); }
+.crow small { color: var(--dim); font-size: 10px; }
+.ready { margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--line); font-family: var(--display); font-weight: 600; letter-spacing: .1em; font-size: 11px; color: var(--bad); }
+.ready.ok { color: var(--ok); }
+
+#met { top: calc(14px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); text-align: center; }
+#met .clock { font-family: var(--display); font-size: 22px; font-weight: 600; letter-spacing: .06em; }
+#met .lbl { font-size: 10px; letter-spacing: .2em; color: var(--dim); }
+#toast { top: calc(74px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); max-width: min(520px, 80vw); text-align: center; font-family: var(--display); font-weight: 600; font-size: 14px; letter-spacing: .04em; padding: 8px 14px; border-radius: 4px; background: rgba(40, 20, 4, .78); border: 1px solid rgba(255,181,71,.45); color: var(--amber); opacity: 0; transition: opacity .3s; }
+#toast.show { opacity: 1; }
+
+#pad { bottom: calc(16px + env(safe-area-inset-bottom, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); pointer-events: auto; }
+.keys { display: grid; grid-template-columns: repeat(3, 64px); gap: 6px; }
+.key { appearance: none; border: 1px solid var(--line); background: rgba(10, 18, 32, .82); color: var(--ink); border-radius: 5px; height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; font-family: var(--mono); touch-action: none; transition: background .08s, border-color .08s, box-shadow .08s; }
+.key b { font-family: var(--display); font-size: 18px; font-weight: 700; line-height: 1; }
+.key small { font-size: 9.5px; color: var(--dim); letter-spacing: .02em; }
+.key.on { background: rgba(127, 227, 255, .22); border-color: var(--cyan); box-shadow: 0 0 14px rgba(127,227,255,.35) inset; }
+.key.on small { color: var(--cyan); }
+.key:focus-visible, .btn:focus-visible, .cta:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.padnote { text-shadow: 0 1px 3px #000, 0 0 8px #000; margin-top: 6px; font-size: 10px; color: var(--dim); max-width: 204px; line-height: 1.4; }
+
+#tools { bottom: calc(16px + env(safe-area-inset-bottom, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); display: flex; gap: 6px; pointer-events: auto; }
+.btn { appearance: none; border: 1px solid var(--line); background: rgba(10, 18, 32, .82); color: var(--ink); border-radius: 4px; padding: 8px 10px; font-family: var(--mono); font-size: 11px; cursor: pointer; }
+.btn[aria-pressed="true"] { border-color: rgba(255,181,71,.5); }
+.btn[aria-pressed="false"] #astState { color: var(--dim); }
+#astState { color: var(--amber); }
+.btn kbd { font-family: var(--display); font-weight: 700; color: var(--amber); margin-right: 4px; }
+
+#overlay[hidden] { display: none; }
+#overlay { position: absolute; inset: 0; display: grid; place-items: center; background: radial-gradient(ellipse at center, rgba(4,6,12,.55), rgba(4,6,12,.88)); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 16px; overflow-y: auto; }
+.card { max-width: 560px; width: 100%; background: rgba(8, 14, 26, .9); border: 1px solid var(--line); border-radius: 6px; padding: 26px 28px; }
+.card h1 { font-family: var(--display); font-weight: 700; font-size: clamp(28px, 6vw, 42px); line-height: 1.05; margin: 0 0 6px; letter-spacing: .02em; text-wrap: balance; }
+.card h1 span { color: var(--amber); }
+.card .sub { color: var(--dim); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; margin: 0 0 18px; }
+.card p { line-height: 1.6; font-size: 13px; margin: 0 0 12px; color: var(--ink); }
+.card ul { margin: 0 0 18px; padding-left: 18px; line-height: 1.7; font-size: 12.5px; color: var(--dim); }
+.card ul b { color: var(--ink); font-weight: 500; }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; margin: 0 0 20px; font-size: 12.5px; }
+.stats div { display: flex; justify-content: space-between; border-bottom: 1px solid var(--line); padding: 4px 0; gap: 8px; }
+.stats span { color: var(--dim); }
+.mode { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; margin: 0 12px 14px 0; vertical-align: middle; }
+.seg { appearance: none; border: 0; background: transparent; color: var(--dim); font-family: var(--mono); font-size: 12px; padding: 10px 14px; cursor: pointer; }
+.seg + .seg { border-left: 1px solid var(--line); }
+.seg[aria-pressed="true"] { background: rgba(255,181,71,.16); color: var(--amber); }
+.seg:focus-visible { outline: 2px solid var(--amber); outline-offset: -2px; }
+.cta { appearance: none; border: 0; background: var(--amber); color: #1a1004; font-family: var(--display); font-weight: 700; font-size: 15px; letter-spacing: .08em; text-transform: uppercase; padding: 12px 22px; border-radius: 4px; cursor: pointer; }
+.cta:hover { filter: brightness(1.08); }
+
+
+/* ---------- seção de física */
+#physics { position: absolute; inset: 0; z-index: 20; background: var(--paper); display: flex; flex-direction: column; user-select: text; -webkit-user-select: text; touch-action: pan-y; }
+#physics[hidden] { display: none; }
+.phy-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: calc(12px + env(safe-area-inset-top, 0px)) 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); border-bottom: 1px solid var(--line); }
+.phy-head .eyebrow { margin: 0 0 2px; }
+.phy-head h2 { font-family: var(--display); font-weight: 700; font-size: clamp(20px, 3.4vw, 28px); margin: 0; letter-spacing: .02em; text-wrap: balance; }
+.phy-nav { flex: none; display: flex; gap: 6px; overflow-x: auto; padding-block: 8px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); border-bottom: 1px solid var(--line); scrollbar-width: thin; }
+.chip { flex: none; appearance: none; border: 1px solid var(--line); background: transparent; color: var(--dim); font-family: var(--mono); font-size: 11.5px; padding: 6px 10px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+.chip:hover, .chip:focus-visible { color: var(--ink); border-color: var(--cyan); outline: none; }
+.phy-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-block: 28px calc(60px + env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.phy-article { max-width: 760px; margin: 0 auto; font-family: var(--sans); font-size: 16.5px; line-height: 1.7; color: var(--ink); }
+.phy-article p { margin: 0 0 14px; }
+.phy-article .lead { font-size: 18.5px; line-height: 1.6; color: var(--ink); margin-bottom: 30px; }
+.phy-article b { font-weight: 600; color: #fff; }
+.phy-article i { font-family: var(--math); font-size: 1.12em; }
+.phy-sec { padding-top: 26px; margin-top: 18px; border-top: 1px solid var(--line); scroll-margin-top: 12px; }
+.phy-sec h3 { font-family: var(--display); font-weight: 700; font-size: clamp(21px, 3vw, 26px); line-height: 1.2; margin: 0 0 14px; display: flex; align-items: baseline; gap: 12px; text-wrap: balance; }
+.secn { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--amber); border: 1px solid rgba(255,181,71,.5); border-radius: 4px; padding: 1px 7px; flex: none; transform: translateY(-3px); }
+blockquote { margin: 16px 0; padding: 12px 18px; border: 1px solid var(--line); border-radius: 4px; font-family: var(--math); font-style: italic; font-size: 19px; line-height: 1.5; color: #fff; background: rgba(255,255,255,.02); }
+.eq { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px; margin: 18px 0; padding: 14px 16px; background: rgba(127, 227, 255, .045); border: 1px solid rgba(127,227,255,.14); border-radius: 4px; overflow-x: auto; }
+.eq-m { font-family: var(--math); font-size: 22px; line-height: 1.6; text-align: center; color: #fff; white-space: nowrap; min-width: 0; }
+.eq-m i, .box .eq-m i { font-size: 1em; }
+.eq-n { font-family: var(--mono); font-size: 12px; color: var(--dim); }
+.fr { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; margin: 0 .15em; line-height: 1.25; }
+.fr > span:first-child { padding: 0 .2em .1em; }
+.fr > span:last-child { border-top: 1.5px solid currentColor; padding: .1em .2em 0; }
+.vec { position: relative; display: inline-block; font-family: var(--math); font-style: italic; font-weight: 600; }
+.vec::after { content: ""; position: absolute; left: 10%; right: -4%; top: -.08em; height: .32em; background: no-repeat center/100% 100% url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 6'%3E%3Cpath d='M0 3h17M14 0.5l4 2.5-4 2.5' fill='none' stroke='%23dbe7f5' stroke-width='1.4'/%3E%3C/svg%3E"); }
+.box { margin: 18px 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: 4px; background: rgba(255, 181, 71, .05); font-size: 15.5px; line-height: 1.7; }
+.box > b:first-child { color: var(--amber); }
+figure { margin: 22px 0; padding: 14px; border: 1px solid var(--line); border-radius: 4px; background: #0a1020; }
+figcaption { font-size: 13.5px; line-height: 1.55; color: var(--dim); margin-top: 10px; }
+figcaption b { color: var(--ink); }
+.fig { display: block; width: 100%; height: auto; max-width: 100%; }
+.fig text { font-family: var(--mono); font-size: 13px; }
+.fig .lbl { font-family: var(--display); font-weight: 600; font-size: 13px; letter-spacing: .14em; fill: var(--amber); }
+.fig .mi { font-family: var(--math); font-style: italic; font-size: 19px; }
+.fig .ink { fill: var(--ink); } .fig .dim { fill: var(--dim); } .fig .dimdark { fill: #4a5566; }
+.fig .fA { fill: var(--amber); } .fig .fC { fill: var(--cyan); } .fig .fG { fill: var(--ok); } .fig .fR { fill: var(--rose); } .fD { fill: var(--dim); }
+#physics .fA { fill: var(--amber); } #physics .fC { fill: var(--cyan); } #physics .fG { fill: var(--ok); } #physics .fR { fill: var(--rose); } #physics .fD { fill: var(--dim); }
+.fig .sA { stroke: var(--amber); } .fig .sC { stroke: var(--cyan); } .fig .sG { stroke: var(--ok); } .fig .sR { stroke: var(--rose); } .fig .sD { stroke: var(--dim); } .fig .sL { stroke: var(--line2); }
+.fig line, .fig polyline, .fig path.sR, .fig path.sD { stroke-linecap: round; }
+.fig .area { fill: rgba(93, 242, 160, .14); }
+.fig .crate { fill: #8a6a48; stroke: #c49a6c; stroke-width: 1.5; }
+.fig .keycap { fill: rgba(10,18,32,.9); stroke: var(--cyan); stroke-width: 1.5; }
+.fig .box { fill: rgba(127,227,255,.05); stroke: rgba(127,227,255,.3); stroke-width: 1.2; }
+.fig .band { fill: rgba(255,181,71,.16); stroke: rgba(255,181,71,.5); stroke-dasharray: 4 3; }
+.fig .earth { fill: #1d4f8f; } .fig .atm { fill: none; stroke: rgba(110,170,255,.45); stroke-width: 6; }
+#physics .mBody { fill: #e8edf2; stroke: #9aa6b4; stroke-width: 1.2; } #physics .mGold { fill: #d9a440; opacity: .85; } #physics .mGrey { fill: #8b939e; }
+#physics .mDark { fill: #3a404a; } #physics .mWin { fill: #10202e; } #physics .mLine { stroke: #9aa6b4; stroke-width: 1; }
+#physics .rock { fill: #6a5d52; stroke: #a8968a; stroke-width: 1.4; }
+.tbl { overflow-x: auto; margin: 16px 0; border: 1px solid var(--line); border-radius: 4px; }
+.tbl table { width: 100%; border-collapse: collapse; font-size: 14.5px; font-variant-numeric: tabular-nums; }
+.tbl th, .tbl td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.tbl th { font-family: var(--display); font-weight: 600; letter-spacing: .06em; font-size: 12.5px; text-transform: uppercase; color: var(--amber); background: rgba(255,255,255,.02); }
+.tbl tr:last-child td { border-bottom: 0; }
+.src { font-size: 13px; color: var(--dim); }
+.end { margin-top: 36px; padding-top: 24px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+.ghost { appearance: none; background: transparent; border: 1px solid rgba(255,181,71,.55); color: var(--amber); font-family: var(--display); font-weight: 600; font-size: 14px; letter-spacing: .06em; text-transform: uppercase; padding: 11px 16px; border-radius: 4px; cursor: pointer; vertical-align: middle; margin-left: 8px; }
+.ghost:hover { background: rgba(255,181,71,.1); }
+@media (max-width: 760px) {
+  .phy-article { font-size: 15.5px; }
+  .eq-m { font-size: 18px; }
+  .phy-head .btn kbd { display: none; }
+  figure { padding: 8px; overflow-x: auto; }
+  .fig { min-width: 560px; }
+  .phy-head .btn { white-space: nowrap; }
+}
+@media (max-width: 760px) {
+  .hud { font-size: 10.5px; }
+  #tele, #crit { width: calc(50vw - 24px); padding: 8px 9px; }
+  #crit .crow small { display: none; }
+  #met { top: auto; bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
+  #met .clock { font-size: 16px; }
+  #toast { top: auto; bottom: calc(196px + env(safe-area-inset-bottom, 0px)); font-size: 12px; }
+  .keys { grid-template-columns: repeat(3, 54px); }
+  .key { height: 50px; }
+  .padnote { display: none; }
+  #tools { flex-direction: column; }
+  .stats { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { #toast { transition: none; } }
+</style>
+</head>
+<body>
+
+
+<div id="app">
+  <canvas id="c" aria-label="Cena do jogo: módulo e estação espacial"></canvas>
+
+  <div id="tele" class="hud panel">
+    <p class="eyebrow">Telemetria</p>
+    <div class="row"><span>Vel. X</span><b id="tVx">+0,00 m/s</b></div>
+    <div class="row"><span>Vel. Y</span><b id="tVy">+0,00 m/s</b></div>
+    <div class="row"><span>Vel. angular</span><b id="tW">+0,0 °/s</b></div>
+    <div class="row"><span>Atitude</span><b id="tTh">0,0°</b></div>
+    <div class="row"><span>Dist. ao porto</span><b id="tD">0,0 m</b></div>
+    <div class="row"><span>Desvio vertical</span><b id="tDy">0,00 m</b></div>
+    <div class="row"><span>Asteroide + próximo</span><b id="tA">– m</b></div>
+    <div class="fuel"><div class="row"><span>Propelente RCS</span><b id="tF">100%</b></div><div class="bar"><i id="fBar"></i></div></div>
+  </div>
+
+  <div id="crit" class="hud panel">
+    <p class="eyebrow">Critérios de acoplamento</p>
+    <div class="crow" id="c1"><i class="dot"></i><span>Aproximação <small>≤ 0,25 m/s</small></span><em id="v1">–</em></div>
+    <div class="crow" id="c2"><i class="dot"></i><span>Lateral <small>≤ 0,10 m/s</small></span><em id="v2">–</em></div>
+    <div class="crow" id="c3"><i class="dot"></i><span>Atitude <small>± 4°</small></span><em id="v3">–</em></div>
+    <div class="crow" id="c4"><i class="dot"></i><span>Rotação <small>≤ 2 °/s</small></span><em id="v4">–</em></div>
+    <div class="crow" id="c5"><i class="dot"></i><span>Alinhamento <small>± 0,25 m</small></span><em id="v5">–</em></div>
+    <div class="ready" id="ready">NÃO PRONTO PARA CONTATO</div>
+  </div>
+
+  <div id="met" class="hud"><div class="lbl">TEMPO DE MISSÃO</div><div class="clock" id="clock">T+00:00</div></div>
+  <div id="toast" class="hud" role="status" aria-live="polite"></div>
+
+  <div id="pad" class="hud">
+    <div class="keys">
+      <button class="key" data-jet="ccw" aria-label="Q: girar anti-horário"><b>Q</b><small>gira ↺</small></button>
+      <button class="key" data-jet="top" aria-label="W: jato para cima"><b>W</b><small>jato ▴</small></button>
+      <button class="key" data-jet="cw" aria-label="E: girar horário"><b>E</b><small>gira ↻</small></button>
+      <button class="key" data-jet="left" aria-label="A: jato para a esquerda"><b>A</b><small>jato ◂</small></button>
+      <button class="key" data-jet="bottom" aria-label="S: jato para baixo"><b>S</b><small>jato ▾</small></button>
+      <button class="key" data-jet="right" aria-label="D: jato para a direita"><b>D</b><small>jato ▸</small></button>
+    </div>
+    <div class="padnote">Jatos fixos no casco do módulo. O empuxo é sempre oposto ao jato. Clique em volta do módulo para disparar o jato daquele lado.</div>
+  </div>
+
+  <div id="tools" class="hud">
+    <button class="btn" id="bPhy"><kbd>F</kbd>Física do jogo</button>
+    <button class="btn" id="bAst" aria-pressed="true"><kbd>T</kbd>Asteroides: <span id="astState">ligados</span></button>
+    <button class="btn" id="bPause"><kbd>P</kbd>Pausa</button>
+    <button class="btn" id="bSound"><kbd>M</kbd>Som</button>
+    <button class="btn" id="bReset"><kbd>R</kbd>Reiniciar</button>
+  </div>
+
+
+  <section id="physics" hidden role="dialog" aria-modal="true" aria-labelledby="phyTitle">
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<marker id="ahA" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="fA"/></marker><marker id="ahC" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="fC"/></marker><marker id="ahG" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="fG"/></marker><marker id="ahR" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="fR"/></marker><marker id="ahD" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="fD"/></marker>
+<g id="gm">
+  <rect x="-66" y="-14" width="8" height="28" rx="2" fill="#3a404a"/>
+  <rect x="-60" y="-20" width="110" height="40" rx="6" fill="#e8edf2" stroke="#9aa6b4" stroke-width="1.2"/>
+  <rect x="-50" y="-20.5" width="32" height="41" fill="#d9a440" opacity="0.85"/>
+  <line x1="-4" y1="-20" x2="-4" y2="20" stroke="#9aa6b4"/><line x1="36" y1="-20" x2="36" y2="20" stroke="#9aa6b4"/>
+  <path d="M50,-20 L62,-13 L62,13 L50,20 z" fill="#8b939e"/>
+  <rect x="62" y="-2" width="12" height="4" fill="#8b939e"/>
+  <circle cx="75" cy="0" r="3.2" fill="#ffb547"/>
+  <circle cx="16" cy="-5" r="3.4" fill="#10202e"/><circle cx="28" cy="-5" r="3.4" fill="#10202e"/>
+  <circle cx="0" cy="0" r="3" fill="#ff8fbf" stroke="#7a2a4c" stroke-width="1"/>
+</g>
+<path id="gr" d="M1,0 L0.83,0.5 L0.45,0.92 L-0.1,1.02 L-0.6,0.8 L-0.98,0.3 L-0.95,-0.25 L-0.7,-0.75 L-0.2,-1.0 L0.35,-0.93 L0.8,-0.6 Z" fill="#6a5d52" stroke="#a8968a" stroke-width="1.4" vector-effect="non-scaling-stroke"/>
+</defs></svg>
+    <header class="phy-head">
+      <div><p class="eyebrow">Manual do piloto</p><h2 id="phyTitle">A física por trás do jogo</h2></div>
+      <button class="btn" id="phyClose"><kbd>Esc</kbd>Voltar ao jogo</button>
+    </header>
+    <nav class="phy-nav" aria-label="Seções"><button class="chip" data-target="phy-inercia">1. Sem atrito, sem freio</button><button class="chip" data-target="phy-acao">2. Ação e reação: como um jato empurra</button><button class="chip" data-target="phy-newton2">3. Acelerar e frear: a segunda lei</button><button class="chip" data-target="phy-torque">4. Girar: torque e momento de inércia</button><button class="chip" data-target="phy-referencial">5. Jatos presos no casco: o referencial do módulo</button><button class="chip" data-target="phy-simulacao">6. Como o computador simula tudo isso</button><button class="chip" data-target="phy-colisoes">7. Colisões e conservação do momento</button><button class="chip" data-target="phy-giro">8. Choques fora do centro fazem girar</button><button class="chip" data-target="phy-acoplamento">9. Acoplamento: por que tão devagar?</button><button class="chip" data-target="phy-gravidade">10. E a gravidade? Tudo cai junto</button><button class="chip" data-target="phy-numeros">11. Os números do jogo</button></nav>
+    <div class="phy-scroll" id="phyScroll">
+      <article class="phy-article">
+        <p class="lead">Encaixar um módulo numa estação espacial parece fácil até você tentar. Aqui está toda a física que o jogo calcula, passo a passo. Você só precisa de um pouco de álgebra e trigonometria do ensino médio.</p>
+        <section class="phy-sec" id="phy-inercia"><h3><span class="secn">1</span>Sem atrito, sem freio</h3>
+<p>Na Terra, quase tudo que se move acaba parando sozinho. Um carrinho de supermercado empurrado e solto rola um pouco e para. Parece natural, mas quem freia o carrinho é o <b>atrito</b> (com o chão e com o ar). Tire o atrito e o carrinho nunca mais para.</p>
+<p>É exatamente isso que acontece no espaço. Lá não há chão nem ar para frear o módulo. Isaac Newton resumiu esse comportamento na sua <b>primeira lei</b>, a lei da inércia:</p>
+<blockquote>Um corpo continua parado, ou continua andando em linha reta com velocidade constante, até que uma força mude isso.</blockquote>
+<figure><svg class="fig" viewBox="0 0 680 296" role="img" aria-label="Comparação: caixa freada pelo atrito na Terra e módulo em velocidade constante no espaço"><text x="20.0" y="28.0" class="lbl" text-anchor="start">NA TERRA, COM ATRITO</text><line x1="20.0" y1="112.0" x2="660.0" y2="112.0" class="sD" stroke-width="2"/><line x1="20.0" y1="112.0" x2="10.0" y2="122.0" class="sD" stroke-width="1"/><line x1="38.0" y1="112.0" x2="28.0" y2="122.0" class="sD" stroke-width="1"/><line x1="56.0" y1="112.0" x2="46.0" y2="122.0" class="sD" stroke-width="1"/><line x1="74.0" y1="112.0" x2="64.0" y2="122.0" class="sD" stroke-width="1"/><line x1="92.0" y1="112.0" x2="82.0" y2="122.0" class="sD" stroke-width="1"/><line x1="110.0" y1="112.0" x2="100.0" y2="122.0" class="sD" stroke-width="1"/><line x1="128.0" y1="112.0" x2="118.0" y2="122.0" class="sD" stroke-width="1"/><line x1="146.0" y1="112.0" x2="136.0" y2="122.0" class="sD" stroke-width="1"/><line x1="164.0" y1="112.0" x2="154.0" y2="122.0" class="sD" stroke-width="1"/><line x1="182.0" y1="112.0" x2="172.0" y2="122.0" class="sD" stroke-width="1"/><line x1="200.0" y1="112.0" x2="190.0" y2="122.0" class="sD" stroke-width="1"/><line x1="218.0" y1="112.0" x2="208.0" y2="122.0" class="sD" stroke-width="1"/><line x1="236.0" y1="112.0" x2="226.0" y2="122.0" class="sD" stroke-width="1"/><line x1="254.0" y1="112.0" x2="244.0" y2="122.0" class="sD" stroke-width="1"/><line x1="272.0" y1="112.0" x2="262.0" y2="122.0" class="sD" stroke-width="1"/><line x1="290.0" y1="112.0" x2="280.0" y2="122.0" class="sD" stroke-width="1"/><line x1="308.0" y1="112.0" x2="298.0" y2="122.0" class="sD" stroke-width="1"/><line x1="326.0" y1="112.0" x2="316.0" y2="122.0" class="sD" stroke-width="1"/><line x1="344.0" y1="112.0" x2="334.0" y2="122.0" class="sD" stroke-width="1"/><line x1="362.0" y1="112.0" x2="352.0" y2="122.0" class="sD" stroke-width="1"/><line x1="380.0" y1="112.0" x2="370.0" y2="122.0" class="sD" stroke-width="1"/><line x1="398.0" y1="112.0" x2="388.0" y2="122.0" class="sD" stroke-width="1"/><line x1="416.0" y1="112.0" x2="406.0" y2="122.0" class="sD" stroke-width="1"/><line x1="434.0" y1="112.0" x2="424.0" y2="122.0" class="sD" stroke-width="1"/><line x1="452.0" y1="112.0" x2="442.0" y2="122.0" class="sD" stroke-width="1"/><line x1="470.0" y1="112.0" x2="460.0" y2="122.0" class="sD" stroke-width="1"/><line x1="488.0" y1="112.0" x2="478.0" y2="122.0" class="sD" stroke-width="1"/><line x1="506.0" y1="112.0" x2="496.0" y2="122.0" class="sD" stroke-width="1"/><line x1="524.0" y1="112.0" x2="514.0" y2="122.0" class="sD" stroke-width="1"/><line x1="542.0" y1="112.0" x2="532.0" y2="122.0" class="sD" stroke-width="1"/><line x1="560.0" y1="112.0" x2="550.0" y2="122.0" class="sD" stroke-width="1"/><line x1="578.0" y1="112.0" x2="568.0" y2="122.0" class="sD" stroke-width="1"/><line x1="596.0" y1="112.0" x2="586.0" y2="122.0" class="sD" stroke-width="1"/><line x1="614.0" y1="112.0" x2="604.0" y2="122.0" class="sD" stroke-width="1"/><line x1="632.0" y1="112.0" x2="622.0" y2="122.0" class="sD" stroke-width="1"/><line x1="650.0" y1="112.0" x2="640.0" y2="122.0" class="sD" stroke-width="1"/><line x1="668.0" y1="112.0" x2="658.0" y2="122.0" class="sD" stroke-width="1"/><rect x="30" y="72" width="50" height="40" rx="3" class="crate" opacity="0.25"/><text x="55.0" y="140.0" class="dim" text-anchor="middle" font-size="12">t = 0 s</text><rect x="180" y="72" width="50" height="40" rx="3" class="crate" opacity="0.44"/><text x="205.0" y="140.0" class="dim" text-anchor="middle" font-size="12">1 s</text><rect x="290" y="72" width="50" height="40" rx="3" class="crate" opacity="0.62"/><text x="315.0" y="140.0" class="dim" text-anchor="middle" font-size="12">2 s</text><rect x="365" y="72" width="50" height="40" rx="3" class="crate" opacity="0.81"/><text x="390.0" y="140.0" class="dim" text-anchor="middle" font-size="12">3 s</text><rect x="415" y="72" width="50" height="40" rx="3" class="crate" opacity="1.00"/><text x="440.0" y="140.0" class="dim" text-anchor="middle" font-size="12">4 s</text><line x1="520.0" y1="92.0" x2="476.0" y2="92.0" class="sA" stroke-width="3" marker-end="url(#ahA)"/><text x="530.0" y="74.0" class="ink" text-anchor="start" font-size="13">atrito freia:</text><text x="530.0" y="89.0" class="dim" text-anchor="start" font-size="12">cada segundo</text><text x="530.0" y="103.0" class="dim" text-anchor="start" font-size="12">anda menos</text><text x="20.0" y="182.0" class="lbl" text-anchor="start">NO ESPAÇO, SEM ATRITO</text><use href="#gm" transform="translate(70.0,240.0) rotate(0.0) scale(0.48)" opacity="0.25"/><text x="70.0" y="282.0" class="dim" text-anchor="middle" font-size="12">t = 0 s</text><line x1="74" y1="208" x2="191" y2="208" class="sG" stroke-width="2" marker-start="url(#ahG)" marker-end="url(#ahG)"/><text x="132.0" y="200.0" class="fG" text-anchor="middle" font-size="13">Δx</text><use href="#gm" transform="translate(195.0,240.0) rotate(0.0) scale(0.48)" opacity="0.4375"/><text x="195.0" y="282.0" class="dim" text-anchor="middle" font-size="12">1 s</text><line x1="199" y1="208" x2="316" y2="208" class="sG" stroke-width="2" marker-start="url(#ahG)" marker-end="url(#ahG)"/><text x="257.0" y="200.0" class="fG" text-anchor="middle" font-size="13">Δx</text><use href="#gm" transform="translate(320.0,240.0) rotate(0.0) scale(0.48)" opacity="0.625"/><text x="320.0" y="282.0" class="dim" text-anchor="middle" font-size="12">2 s</text><line x1="324" y1="208" x2="441" y2="208" class="sG" stroke-width="2" marker-start="url(#ahG)" marker-end="url(#ahG)"/><text x="382.0" y="200.0" class="fG" text-anchor="middle" font-size="13">Δx</text><use href="#gm" transform="translate(445.0,240.0) rotate(0.0) scale(0.48)" opacity="0.8125"/><text x="445.0" y="282.0" class="dim" text-anchor="middle" font-size="12">3 s</text><line x1="449" y1="208" x2="566" y2="208" class="sG" stroke-width="2" marker-start="url(#ahG)" marker-end="url(#ahG)"/><text x="507.0" y="200.0" class="fG" text-anchor="middle" font-size="13">Δx</text><use href="#gm" transform="translate(570.0,240.0) rotate(0.0) scale(0.48)" opacity="1.0"/><text x="570.0" y="282.0" class="dim" text-anchor="middle" font-size="12">4 s</text><text x="660.0" y="182.0" class="dim" text-anchor="end" font-size="12">mesma distância a cada segundo</text></svg><figcaption><b>Figura 1.</b> Na Terra o atrito rouba velocidade a cada instante. No espaço, sem atrito, o módulo percorre a mesma distância Δx a cada segundo, para sempre, até um jato agir.</figcaption></figure>
+<p>Quando a velocidade é constante, a posição muda sempre no mesmo ritmo. A equação é:</p>
+<div class="eq"><div class="eq-m"><i>x</i> = <i>x</i><sub>0</sub> + <i>v</i> · <i>t</i></div><span class="eq-n">(1)</span></div>
+<p>onde <i>x</i><sub>0</sub> é a posição inicial, <i>v</i> é a velocidade e <i>t</i> é o tempo. Se o módulo anda a 0,5 m/s, em 10 s ele anda 5 m, em 60 s anda 30 m, e assim por diante.</p>
+<div class="box"><b>No jogo.</b> É por isso que soltar a tecla não para o módulo. A telemetria continua mostrando a mesma Vel. X e Vel. Y depois que você solta tudo. A linha tracejada laranja à frente do módulo é a equação (1) desenhada: onde ele vai estar nos próximos 25 s se você não fizer nada.</div>
+</section><section class="phy-sec" id="phy-acao"><h3><span class="secn">2</span>Ação e reação: como um jato empurra</h3>
+<p>Se não existe chão para empurrar, como o módulo consegue se mover? A resposta está na <b>terceira lei de Newton</b>: quando um corpo empurra outro, o outro empurra de volta com a mesma força, no sentido oposto.</p>
+<p>O jato de ar comprimido empurra gás para fora em alta velocidade. O gás, então, empurra o módulo para o lado contrário. É o mesmo que acontece quando você solta um balão de festa cheio sem amarrar: o ar sai por trás e o balão dispara para a frente.</p>
+<figure><svg class="fig" viewBox="0 0 680 245" role="img" aria-label="Terceira lei de Newton: o gás sai para a direita e o módulo é empurrado para a esquerda"><use href="#gm" transform="translate(330.0,130.0) rotate(0.0) scale(1.0)" opacity="1.0"/><circle cx="420.5" cy="118.1" r="2.1" class="fC" opacity="0.89"/><circle cx="432.6" cy="118.6" r="2.3" class="fC" opacity="0.85"/><circle cx="445.9" cy="114.4" r="2.6" class="fC" opacity="0.80"/><circle cx="450.0" cy="121.1" r="2.7" class="fC" opacity="0.79"/><circle cx="463.3" cy="114.9" r="2.9" class="fC" opacity="0.74"/><circle cx="481.7" cy="117.5" r="3.3" class="fC" opacity="0.68"/><circle cx="490.6" cy="117.6" r="3.5" class="fC" opacity="0.64"/><circle cx="499.2" cy="111.4" r="3.7" class="fC" opacity="0.61"/><circle cx="509.7" cy="125.8" r="3.9" class="fC" opacity="0.58"/><circle cx="519.2" cy="123.6" r="4.1" class="fC" opacity="0.54"/><circle cx="531.4" cy="106.9" r="4.3" class="fC" opacity="0.50"/><circle cx="542.9" cy="120.5" r="4.6" class="fC" opacity="0.46"/><circle cx="548.7" cy="104.4" r="4.7" class="fC" opacity="0.44"/><circle cx="565.3" cy="117.1" r="5.0" class="fC" opacity="0.38"/><circle cx="574.4" cy="130.9" r="5.2" class="fC" opacity="0.35"/><circle cx="585.0" cy="133.2" r="5.4" class="fC" opacity="0.31"/><circle cx="421.4" cy="140.8" r="2.1" class="fC" opacity="0.89"/><circle cx="435.5" cy="139.3" r="2.4" class="fC" opacity="0.84"/><circle cx="444.9" cy="140.9" r="2.6" class="fC" opacity="0.80"/><circle cx="450.5" cy="142.1" r="2.7" class="fC" opacity="0.79"/><circle cx="460.9" cy="141.2" r="2.9" class="fC" opacity="0.75"/><circle cx="471.9" cy="136.4" r="3.1" class="fC" opacity="0.71"/><circle cx="486.3" cy="147.4" r="3.4" class="fC" opacity="0.66"/><circle cx="493.7" cy="137.0" r="3.6" class="fC" opacity="0.63"/><circle cx="509.7" cy="151.5" r="3.9" class="fC" opacity="0.58"/><circle cx="519.8" cy="139.6" r="4.1" class="fC" opacity="0.54"/><circle cx="534.6" cy="130.2" r="4.4" class="fC" opacity="0.49"/><circle cx="544.0" cy="136.1" r="4.6" class="fC" opacity="0.46"/><circle cx="547.0" cy="131.1" r="4.7" class="fC" opacity="0.44"/><circle cx="559.4" cy="151.8" r="4.9" class="fC" opacity="0.40"/><circle cx="568.7" cy="144.7" r="5.1" class="fC" opacity="0.37"/><circle cx="584.2" cy="137.4" r="5.4" class="fC" opacity="0.31"/><line x1="430.0" y1="70.0" x2="600.0" y2="70.0" class="sC" stroke-width="3" marker-end="url(#ahC)"/><text x="515.0" y="58.0" class="fC" text-anchor="middle" font-size="13">gás expelido para a DIREITA</text><text x="515.0" y="90.0" class="dim" text-anchor="middle" font-size="12">massa m · velocidade v</text><line x1="250.0" y1="70.0" x2="90.0" y2="70.0" class="sA" stroke-width="4" marker-end="url(#ahA)"/><text x="170.0" y="58.0" class="fA" text-anchor="middle" font-size="13">módulo empurrado para a ESQUERDA</text><text x="170.0" y="90.0" class="dim" text-anchor="middle" font-size="12">massa M · ganho de velocidade Δv</text><rect x="300" y="190" width="60" height="38" rx="5" class="keycap"/><text x="330.0" y="216.0" class="ink" text-anchor="middle" font-size="20" font-weight="700">D</text><text x="372.0" y="206.0" class="dim" text-anchor="start" font-size="12">tecla D: liga o jato do</text><text x="372.0" y="222.0" class="dim" text-anchor="start" font-size="12">lado direito do módulo</text></svg><figcaption><b>Figura 2.</b> Ao apertar D, o jato do lado direito solta gás para a direita. Pela terceira lei, o gás empurra o módulo para a esquerda.</figcaption></figure>
+<p>Para medir “quanto movimento” um corpo tem, os físicos usam o <b>momento linear</b> (também chamado de quantidade de movimento):</p>
+<div class="eq"><div class="eq-m"><span class="vec">p</span> = <i>m</i> · <span class="vec">v</span></div><span class="eq-n">(2)</span></div>
+<p>A setinha em cima da letra indica que é um <b>vetor</b>: tem tamanho, direção e sentido. Antes do jato ligar, tudo está parado e o momento total é zero. Depois, o gás tem momento para a direita e o módulo tem o mesmo momento para a esquerda, e a soma continua zero:</p>
+<div class="eq"><div class="eq-m"><i>m</i><sub>gás</sub> · <i>v</i><sub>gás</sub> = <i>M</i><sub>módulo</sub> · Δ<i>v</i><sub>módulo</sub></div><span class="eq-n">(3)</span></div>
+<p>Como o módulo é muito mais pesado que o gás que sai, ele ganha só um pouquinho de velocidade a cada instante. Quanto mais gás por segundo (<i>ṁ</i>) e mais rápido ele sai (<i>v</i><sub>e</sub>), maior a força do jato, chamada de <b>empuxo</b>:</p>
+<div class="eq"><div class="eq-m"><i>F</i><sub>empuxo</sub> = <i>ṁ</i> · <i>v</i><sub>e</sub></div><span class="eq-n">(4)</span></div>
+<div class="box"><b>Sendo honesto.</b> No jogo, cada jato empurra o módulo de 9 toneladas com cerca de 3 800 N. Jatos reais de gás frio são bem mais fracos, geralmente de poucos newtons a algumas dezenas de newtons. Aumentamos a força para a partida não durar uma hora.</div>
+</section><section class="phy-sec" id="phy-newton2"><h3><span class="secn">3</span>Acelerar e frear: a segunda lei</h3>
+<p>A <b>segunda lei de Newton</b> diz quanto a velocidade muda quando uma força age: quanto maior a força, maior a aceleração; quanto maior a massa, menor a aceleração.</p>
+<div class="eq"><div class="eq-m"><span class="vec">F</span> = <i>m</i> · <span class="vec">a</span> &nbsp;&nbsp;⟹&nbsp;&nbsp; <span class="vec">a</span> = <span class="fr"><span><span class="vec">F</span></span><span><i>m</i></span></span></div><span class="eq-n">(5)</span></div>
+<p>No jogo, cada jato produz uma aceleração de <i>a</i> = 0,42 m/s². Isso quer dizer que, a cada segundo com o jato ligado, a velocidade aumenta 0,42 m/s. Com aceleração constante, valem estas duas equações:</p>
+<div class="eq"><div class="eq-m"><i>v</i> = <i>v</i><sub>0</sub> + <i>a</i> · <i>t</i></div><span class="eq-n">(6)</span></div>
+<div class="eq"><div class="eq-m"><i>x</i> = <i>x</i><sub>0</sub> + <i>v</i><sub>0</sub> · <i>t</i> + <span class="fr"><span>1</span><span>2</span></span> <i>a</i> · <i>t</i><sup>2</sup></div><span class="eq-n">(7)</span></div>
+<figure><svg class="fig" viewBox="0 0 680 326" role="img" aria-label="Gráfico de velocidade por tempo: acelera por 2 segundos, segue constante por 8 segundos, freia por 2 segundos"><line x1="70.0" y1="250.0" x2="70.0" y2="60.0" class="sL" stroke-width="1"/><text x="70.0" y="268.0" class="dim" text-anchor="middle" font-size="12">0</text><line x1="165.0" y1="250.0" x2="165.0" y2="60.0" class="sL" stroke-width="1"/><text x="165.0" y="268.0" class="dim" text-anchor="middle" font-size="12">2</text><line x1="260.0" y1="250.0" x2="260.0" y2="60.0" class="sL" stroke-width="1"/><text x="260.0" y="268.0" class="dim" text-anchor="middle" font-size="12">4</text><line x1="355.0" y1="250.0" x2="355.0" y2="60.0" class="sL" stroke-width="1"/><text x="355.0" y="268.0" class="dim" text-anchor="middle" font-size="12">6</text><line x1="450.0" y1="250.0" x2="450.0" y2="60.0" class="sL" stroke-width="1"/><text x="450.0" y="268.0" class="dim" text-anchor="middle" font-size="12">8</text><line x1="545.0" y1="250.0" x2="545.0" y2="60.0" class="sL" stroke-width="1"/><text x="545.0" y="268.0" class="dim" text-anchor="middle" font-size="12">10</text><line x1="640.0" y1="250.0" x2="640.0" y2="60.0" class="sL" stroke-width="1"/><text x="640.0" y="268.0" class="dim" text-anchor="middle" font-size="12">12</text><line x1="70.0" y1="250.0" x2="640.0" y2="250.0" class="sL" stroke-width="1"/><text x="62.0" y="254.0" class="dim" text-anchor="end" font-size="12">0,00</text><line x1="70.0" y1="202.5" x2="640.0" y2="202.5" class="sL" stroke-width="1"/><text x="62.0" y="206.5" class="dim" text-anchor="end" font-size="12">0,25</text><line x1="70.0" y1="155.0" x2="640.0" y2="155.0" class="sL" stroke-width="1"/><text x="62.0" y="159.0" class="dim" text-anchor="end" font-size="12">0,50</text><line x1="70.0" y1="107.5" x2="640.0" y2="107.5" class="sL" stroke-width="1"/><text x="62.0" y="111.5" class="dim" text-anchor="end" font-size="12">0,75</text><line x1="70.0" y1="60.0" x2="640.0" y2="60.0" class="sL" stroke-width="1"/><text x="62.0" y="64.0" class="dim" text-anchor="end" font-size="12">1,00</text><polygon points="70.0,250.0 165.0,90.4 545.0,90.4 640.0,250.0" class="area"/><polyline points="70.0,250.0 165.0,90.4 545.0,90.4 640.0,250.0" class="sG" stroke-width="3.5" fill="none"/><line x1="70.0" y1="250.0" x2="640.0" y2="250.0" class="sD" stroke-width="1.5"/><line x1="70.0" y1="250.0" x2="70.0" y2="60.0" class="sD" stroke-width="1.5"/><text x="125.5" y="174.2" class="ink" text-anchor="start" font-size="13">acelera</text><text x="355.0" y="78.4" class="ink" text-anchor="middle" font-size="13">inércia: velocidade constante, jatos desligados</text><text x="584.5" y="174.2" class="ink" text-anchor="end" font-size="13">freia</text><text x="355.0" y="177.8" class="fG" text-anchor="middle" font-size="14">área sob a linha = distância</text><text x="355.0" y="195.8" class="dim" text-anchor="middle" font-size="13">0,84 + 6,72 + 0,84 = 8,4 m</text><text x="18.0" y="46.0" class="dim" text-anchor="start" font-size="12">velocidade (m/s)</text><rect x="70.0" y="292" width="95.0" height="12" rx="2" class="fC"/><text x="117.5" y="318.0" class="fC" text-anchor="middle" font-size="12">A ligado</text><rect x="545.0" y="292" width="95.0" height="12" rx="2" class="fC"/><text x="592.5" y="318.0" class="fC" text-anchor="middle" font-size="12">D ligado</text><text x="640.0" y="284.0" class="dim" text-anchor="end" font-size="12">tempo (s)</text></svg><figcaption><b>Figura 3.</b> Uma viagem completa. O jato A acelera por 2 s, depois o módulo segue por inércia por 8 s, e o jato D freia por 2 s. A área verde sob a linha é a distância percorrida.</figcaption></figure>
+<div class="box"><b>Exemplo resolvido.</b> Partindo do repouso, você segura A por 2 s.<br>
+Velocidade final, pela equação (6): <i>v</i> = 0 + 0,42 × 2 = <b>0,84 m/s</b>.<br>
+Distância nesses 2 s, pela (7): <i>x</i> = ½ × 0,42 × 2² = <b>0,84 m</b>.<br>
+Agora repare: 0,84 m/s é mais de três vezes o limite de 0,25 m/s para acoplar, e passa até do limite de 0,8 m/s que destrói o módulo numa batida. Dois segundos de jato já são demais. Pilotos de verdade dão toques curtos.</div>
+<p>Para frear, a ideia é a mesma, só que com o jato do lado oposto. A força passa a apontar contra o movimento, a aceleração fica negativa e a velocidade diminui. Para parar exatamente, o tempo de freada precisa ser igual ao tempo de aceleração (se os jatos têm a mesma força).</p>
+</section><section class="phy-sec" id="phy-torque"><h3><span class="secn">4</span>Girar: torque e momento de inércia</h3>
+<p>Para girar, não basta uma força: importa <b>onde</b> ela é aplicada. Pense numa porta: empurrar perto da maçaneta abre fácil, empurrar perto da dobradiça quase não funciona. Esse “poder de girar” se chama <b>torque</b> (τ, a letra grega tau):</p>
+<div class="eq"><div class="eq-m">τ = <i>F</i> · <i>d</i></div><span class="eq-n">(8)</span></div>
+<p>onde <i>d</i> é a distância entre a linha da força e o ponto de giro. O módulo usa um truque: dois jatos ao mesmo tempo, um no nariz e outro na cauda, empurrando em sentidos opostos. Esse par de forças se chama <b>binário</b>.</p>
+<figure><svg class="fig" viewBox="0 0 680 300" role="img" aria-label="Binário de forças: um jato no nariz empurra para cima e outro na cauda empurra para baixo, girando o módulo"><use href="#gm" transform="translate(330.0,150.0) rotate(0.0) scale(1.4)" opacity="1.0"/><circle cx="383.0" cy="205.7" r="2.2" class="fC" opacity="0.87"/><circle cx="384.0" cy="216.0" r="2.7" class="fC" opacity="0.78"/><circle cx="382.2" cy="220.1" r="2.9" class="fC" opacity="0.75"/><circle cx="383.3" cy="224.8" r="3.1" class="fC" opacity="0.71"/><circle cx="376.8" cy="235.0" r="3.6" class="fC" opacity="0.62"/><circle cx="388.4" cy="238.2" r="3.8" class="fC" opacity="0.59"/><circle cx="374.8" cy="245.2" r="4.1" class="fC" opacity="0.53"/><circle cx="399.1" cy="256.4" r="4.7" class="fC" opacity="0.44"/><circle cx="365.7" cy="265.4" r="5.1" class="fC" opacity="0.36"/><circle cx="378.8" cy="270.1" r="5.4" class="fC" opacity="0.32"/><circle cx="262.9" cy="95.6" r="2.1" class="fC" opacity="0.88"/><circle cx="266.0" cy="85.7" r="2.6" class="fC" opacity="0.80"/><circle cx="257.5" cy="82.1" r="2.8" class="fC" opacity="0.77"/><circle cx="256.5" cy="75.4" r="3.1" class="fC" opacity="0.71"/><circle cx="252.7" cy="64.3" r="3.7" class="fC" opacity="0.62"/><circle cx="253.9" cy="58.7" r="3.9" class="fC" opacity="0.57"/><circle cx="259.5" cy="53.4" r="4.2" class="fC" opacity="0.52"/><circle cx="265.2" cy="42.6" r="4.7" class="fC" opacity="0.43"/><circle cx="253.6" cy="41.3" r="4.8" class="fC" opacity="0.42"/><circle cx="275.9" cy="33.4" r="5.2" class="fC" opacity="0.35"/><line x1="383.6" y1="120.0" x2="383.6" y2="58.0" class="sA" stroke-width="4" marker-end="url(#ahA)"/><text x="393.6" y="80.0" class="mi fA" text-anchor="start">F</text><line x1="261.5" y1="180.0" x2="261.5" y2="242.0" class="sA" stroke-width="4" marker-end="url(#ahA)"/><text x="239.5" y="232.0" class="mi fA" text-anchor="start">F</text><text x="395.6" y="228.6" class="fC" text-anchor="start" font-size="12">gás para baixo</text><text x="227.5" y="81.4" class="fC" text-anchor="end" font-size="12">gás para cima</text><line x1="261.5" y1="268" x2="383.6" y2="268" class="sD" stroke-width="1.5" marker-start="url(#ahD)" marker-end="url(#ahD)"/><line x1="261.5" y1="246.0" x2="261.5" y2="274.0" class="sD" stroke-width="1" stroke-dasharray="5 5"/><line x1="383.6" y1="170.0" x2="383.6" y2="274.0" class="sD" stroke-width="1" stroke-dasharray="5 5"/><text x="322.5" y="288.0" class="ink" text-anchor="middle" font-size="13">d = 2,85 m (braço entre os dois jatos)</text><path d="M446.0,95.9 A128,128 0 0 0 214.0,95.9" class="sR" stroke-width="3" fill="none" marker-end="url(#ahR)"/><text x="330.0" y="14.0" class="fR" text-anchor="middle" font-size="13">tecla Q: os dois jatos juntos giram o módulo no sentido anti-horário</text><text x="520.0" y="140.0" class="ink" text-anchor="start" font-size="13">as duas forças</text><text x="520.0" y="157.0" class="ink" text-anchor="start" font-size="13">se anulam para</text><text x="520.0" y="174.0" class="ink" text-anchor="start" font-size="13">andar, mas</text><text x="520.0" y="191.0" class="fR" text-anchor="start" font-size="13">somam para girar</text></svg><figcaption><b>Figura 4.</b> Um binário. As duas forças são iguais e opostas, então o empurrão total é zero e o módulo não sai do lugar. Mas as duas giram para o mesmo lado, então os torques se somam. O ponto rosa é o centro de massa.</figcaption></figure>
+<p>Assim como a massa resiste a mudanças de velocidade, o <b>momento de inércia</b> (<i>I</i>) resiste a mudanças de rotação. Ele depende da massa e de como ela está espalhada: massa longe do centro gira com mais dificuldade. Para um cilindro de massa <i>m</i>, raio <i>R</i> e comprimento <i>L</i>, girando em torno do meio:</p>
+<div class="eq"><div class="eq-m"><i>I</i> = <span class="fr"><span><i>m</i> · (3<i>R</i><sup>2</sup> + <i>L</i><sup>2</sup>)</span><span>12</span></span></div><span class="eq-n">(9)</span></div>
+<p>A “segunda lei para rotação” fica igual à equação (5), trocando força por torque, massa por momento de inércia e aceleração por <b>aceleração angular</b> α:</p>
+<div class="eq"><div class="eq-m">α = <span class="fr"><span>τ</span><span><i>I</i></span></span></div><span class="eq-n">(10)</span></div>
+<div class="eq"><div class="eq-m">ω = ω<sub>0</sub> + α · <i>t</i> &nbsp;&nbsp;&nbsp;&nbsp; θ = θ<sub>0</sub> + ω · <i>t</i></div><span class="eq-n">(11)</span></div>
+<p>Aqui ω (ômega) é a velocidade de rotação e θ (teta) é o ângulo. Repare como as equações (11) são “gêmeas” das (6) e (1).</p>
+<div class="box"><b>No jogo.</b> O módulo tem <i>m</i> = 9 000 kg, <i>R</i> = 0,85 m e <i>L</i> = 4,4 m. Pela equação (9): <i>I</i> ≈ 16 150 kg·m². O jogo gira o módulo com α = 10 °/s², que é 0,1745 rad/s². Pela (10), o torque é τ = 16 150 × 0,1745 ≈ 2 820 N·m. Com braço <i>d</i> = 2,85 m, cada jato empurra com <i>F</i> = τ/<i>d</i> ≈ 990 N.<br>E a rotação também tem inércia: depois de soltar Q, o módulo continua girando até você usar E pelo mesmo tempo.</div>
+</section><section class="phy-sec" id="phy-referencial"><h3><span class="secn">5</span>Jatos presos no casco: o referencial do módulo</h3>
+<p>Os jatos estão parafusados no módulo. Por isso, “jato da direita” quer dizer direita <b>do módulo</b>, não direita da tela. Se o módulo estiver inclinado, o empurrão sai inclinado também.</p>
+<figure><svg class="fig" viewBox="0 0 680 300" role="img" aria-label="Módulo inclinado 30 graus: o empuxo do jato D se divide em componente horizontal F cos theta e vertical F sen theta"><line x1="90.0" y1="270.0" x2="650.0" y2="270.0" class="sD" stroke-width="1.5" marker-end="url(#ahD)"/><line x1="90.0" y1="270.0" x2="90.0" y2="24.0" class="sD" stroke-width="1.5" marker-end="url(#ahD)"/><text x="640.0" y="292.0" class="dim" text-anchor="end" font-size="12">x (tela / mundo)</text><text x="98.0" y="30.0" class="dim" text-anchor="start" font-size="12">y</text><use href="#gm" transform="translate(400.0,150.0) rotate(-30.0) scale(1.0)" opacity="1.0"/><line x1="400.0" y1="150.0" x2="575.0" y2="150.0" class="sD" stroke-width="1.2" stroke-dasharray="5 5"/><line x1="400.0" y1="150.0" x2="564.5" y2="55.0" class="sC" stroke-width="1.8" marker-end="url(#ahC)"/><text x="569.7" y="48.0" class="fC" text-anchor="start" font-size="12">x′ (módulo)</text><line x1="400.0" y1="150.0" x2="345.0" y2="54.7" class="sC" stroke-width="1.8" marker-end="url(#ahC)"/><text x="338.0" y="43.5" class="fC" text-anchor="end" font-size="13">y′</text><path d="M470.0,150.0 A70,70 0 0 0 460.6,115.0" class="sR" stroke-width="2" fill="none" marker-end="url(#ahR)"/><text x="482.0" y="136.0" class="mi fR" text-anchor="start">θ</text><line x1="400.0" y1="150.0" x2="252.8" y2="150.0" class="sA" stroke-width="2" stroke-dasharray="5 5"/><line x1="252.8" y1="150.0" x2="252.8" y2="235.0" class="sA" stroke-width="2" stroke-dasharray="5 5"/><line x1="400.0" y1="150.0" x2="252.8" y2="235.0" class="sA" stroke-width="4" marker-end="url(#ahA)"/><text x="326.4" y="142.0" class="mi fA" text-anchor="middle">F · cos θ</text><text x="242.8" y="197.5" class="mi fA" text-anchor="end">F · sen θ</text><text x="256.8" y="257.0" class="fA" text-anchor="start" font-size="12">empuxo do jato D</text><circle cx="483.3" cy="103.3" r="2.1" class="fC" opacity="0.89"/><circle cx="494.0" cy="95.4" r="2.6" class="fC" opacity="0.80"/><circle cx="500.7" cy="96.5" r="2.8" class="fC" opacity="0.77"/><circle cx="511.2" cy="86.1" r="3.3" class="fC" opacity="0.67"/><circle cx="513.6" cy="77.7" r="3.6" class="fC" opacity="0.63"/><circle cx="518.9" cy="77.8" r="3.8" class="fC" opacity="0.60"/><circle cx="526.4" cy="62.4" r="4.3" class="fC" opacity="0.50"/><circle cx="537.6" cy="60.1" r="4.7" class="fC" opacity="0.43"/><circle cx="537.5" cy="52.0" r="4.9" class="fC" opacity="0.41"/><circle cx="564.3" cy="66.6" r="5.5" class="fC" opacity="0.30"/></svg><figcaption><b>Figura 5.</b> Com o módulo girado de θ = 30°, o empuxo do jato D aponta ao longo do eixo do módulo. A trigonometria separa esse empurrão em uma parte horizontal e outra vertical.</figcaption></figure>
+<p>Usando seno e cosseno, que você vê no triângulo retângulo, a força se divide em duas componentes:</p>
+<div class="eq"><div class="eq-m"><i>F</i><sub>x</sub> = <i>F</i> · cos θ &nbsp;&nbsp;&nbsp;&nbsp; <i>F</i><sub>y</sub> = <i>F</i> · sen θ</div><span class="eq-n">(12)</span></div>
+<p>Em geral, um empurrão com componentes (<i>f</i><sub>x′</sub>, <i>f</i><sub>y′</sub>) medidas no módulo vira, na tela:</p>
+<div class="eq"><div class="eq-m"><i>F</i><sub>x</sub> = <i>f</i><sub>x′</sub> cos θ − <i>f</i><sub>y′</sub> sen θ<br><i>F</i><sub>y</sub> = <i>f</i><sub>x′</sub> sen θ + <i>f</i><sub>y′</sub> cos θ</div><span class="eq-n">(13)</span></div>
+<div class="box"><b>Dica de piloto.</b> Se o módulo estiver de lado, apertar A não leva ele para a direita da tela: leva para onde o nariz aponta. Por isso, alinhar o ângulo primeiro (com Q e E) e só depois avançar costuma ser a estratégia mais fácil.</div>
+</section><section class="phy-sec" id="phy-simulacao"><h3><span class="secn">6</span>Como o computador simula tudo isso</h3>
+<p>O computador não resolve as equações de uma vez para o futuro inteiro. Ele avança o tempo em passos minúsculos de Δ<i>t</i> = 1/120 s (cerca de 8 milésimos de segundo) e, a cada passo, repete a mesma receita:</p>
+<figure><svg class="fig" viewBox="0 0 680 186" role="img" aria-label="Ciclo da simulação: ler teclas, somar forças, calcular aceleração, atualizar velocidade e posição, testar colisões"><rect x="10" y="40" width="96" height="68" rx="5" class="box"/><text x="58.0" y="68.0" class="ink" text-anchor="middle" font-size="13">1. Ler</text><text x="58.0" y="88.0" class="fC" text-anchor="middle" font-size="13">teclas</text><line x1="108.0" y1="74.0" x2="130.0" y2="74.0" class="sD" stroke-width="1.8" marker-end="url(#ahD)"/><rect x="122" y="40" width="96" height="68" rx="5" class="box"/><text x="170.0" y="68.0" class="ink" text-anchor="middle" font-size="13">2. Somar</text><text x="170.0" y="88.0" class="fC" text-anchor="middle" font-size="13">forças</text><line x1="220.0" y1="74.0" x2="242.0" y2="74.0" class="sD" stroke-width="1.8" marker-end="url(#ahD)"/><rect x="234" y="40" width="96" height="68" rx="5" class="box"/><text x="282.0" y="68.0" class="ink" text-anchor="middle" font-size="13">3. Calcular</text><text x="282.0" y="88.0" class="fC" text-anchor="middle" font-size="13">a = F/m</text><line x1="332.0" y1="74.0" x2="354.0" y2="74.0" class="sD" stroke-width="1.8" marker-end="url(#ahD)"/><rect x="346" y="40" width="96" height="68" rx="5" class="box"/><text x="394.0" y="68.0" class="ink" text-anchor="middle" font-size="13">4. Atualizar</text><text x="394.0" y="88.0" class="fC" text-anchor="middle" font-size="13">v += a·Δt</text><line x1="444.0" y1="74.0" x2="466.0" y2="74.0" class="sD" stroke-width="1.8" marker-end="url(#ahD)"/><rect x="458" y="40" width="96" height="68" rx="5" class="box"/><text x="506.0" y="68.0" class="ink" text-anchor="middle" font-size="13">5. Atualizar</text><text x="506.0" y="88.0" class="fC" text-anchor="middle" font-size="13">x += v·Δt</text><line x1="556.0" y1="74.0" x2="578.0" y2="74.0" class="sD" stroke-width="1.8" marker-end="url(#ahD)"/><rect x="570" y="40" width="96" height="68" rx="5" class="box"/><text x="618.0" y="68.0" class="ink" text-anchor="middle" font-size="13">6. Testar</text><text x="618.0" y="88.0" class="fC" text-anchor="middle" font-size="13">colisões</text><path d="M626,110 L626,150 L58,150 L58,114" class="sD" stroke-width="1.8" fill="none" marker-end="url(#ahD)"/><text x="340.0" y="174.0" class="ink" text-anchor="middle" font-size="13">repete a cada Δt = 1/120 s, ou seja, 120 vezes por segundo</text></svg><figcaption><b>Figura 6.</b> O ciclo da física do jogo, repetido 120 vezes por segundo.</figcaption></figure>
+<div class="eq"><div class="eq-m"><span class="vec">v</span><sub>novo</sub> = <span class="vec">v</span> + <span class="vec">a</span> · Δ<i>t</i></div><span class="eq-n">(14)</span></div>
+<div class="eq"><div class="eq-m"><span class="vec">x</span><sub>novo</sub> = <span class="vec">x</span> + <span class="vec">v</span><sub>novo</sub> · Δ<i>t</i></div><span class="eq-n">(15)</span></div>
+<p>Esse método se chama <b>Euler semi-implícito</b>. Ele usa a velocidade já atualizada para mover a posição, o que deixa a simulação estável. Como o passo é muito pequeno, o resultado fica praticamente igual ao das equações (6) e (7). O mesmo vale para a rotação: ω recebe α·Δ<i>t</i> e θ recebe ω·Δ<i>t</i>.</p>
+<p>O passo é fixo de propósito. Se o seu computador estiver lento e desenhar menos quadros por segundo, a física faz vários passos por quadro e continua igual. Assim, o módulo se comporta do mesmo jeito em qualquer máquina.</p>
+</section><section class="phy-sec" id="phy-colisoes"><h3><span class="secn">7</span>Colisões e conservação do momento</h3>
+<p>Quando duas coisas batem, cada uma empurra a outra durante um instante curtíssimo. Pela terceira lei, esses empurrões são iguais e opostos. O efeito total desse empurrão rápido se chama <b>impulso</b> (<i>J</i>). Ele muda o momento de cada corpo:</p>
+<div class="eq"><div class="eq-m">Δ<span class="vec">p</span> = <span class="vec">J</span> &nbsp;&nbsp;&nbsp;&nbsp; Δ<span class="vec">v</span> = <span class="fr"><span><span class="vec">J</span></span><span><i>m</i></span></span></div><span class="eq-n">(16)</span></div>
+<p>Como um corpo recebe +<i>J</i> e o outro recebe −<i>J</i>, o momento total não muda. Esta é uma das leis mais importantes da física, a <b>conservação do momento</b>:</p>
+<div class="eq"><div class="eq-m"><i>m</i><sub>A</sub> <span class="vec">v</span><sub>A</sub> + <i>m</i><sub>B</sub> <span class="vec">v</span><sub>B</sub> = <i>m</i><sub>A</sub> <span class="vec">v</span>′<sub>A</sub> + <i>m</i><sub>B</sub> <span class="vec">v</span>′<sub>B</sub></div><span class="eq-n">(17)</span></div>
+<p>O apóstrofo (′) indica “depois da colisão”. Mas só essa lei não basta para saber o resultado: falta dizer se a batida é “elástica” como bola de borracha ou “mole” como massinha. Isso é o <b>coeficiente de restituição</b> <i>e</i>, um número entre 0 e 1. Com <i>e</i> = 1 nenhuma energia se perde; com <i>e</i> = 0 os corpos grudam. Juntando tudo, o tamanho do impulso é:</p>
+<div class="eq"><div class="eq-m"><i>J</i> = <span class="fr"><span>−(1 + <i>e</i>) · <i>v</i><sub>rel</sub></span><span><span class="fr"><span>1</span><span><i>m</i><sub>A</sub></span></span> + <span class="fr"><span>1</span><span><i>m</i><sub>B</sub></span></span></span></span></div><span class="eq-n">(18)</span></div>
+<p>onde <i>v</i><sub>rel</sub> é a velocidade com que um se aproxima do outro, medida ao longo da linha que liga os centros (a <b>normal</b> <span class="vec">n</span>).</p>
+<figure><svg class="fig" viewBox="0 0 680 306" role="img" aria-label="Colisão frontal entre dois asteroides: antes, contato com impulsos iguais e opostos, e depois, com o momento total conservado"><line x1="226.0" y1="20.0" x2="226.0" y2="220.0" class="sL" stroke-width="1"/><line x1="453.0" y1="20.0" x2="453.0" y2="220.0" class="sL" stroke-width="1"/><text x="113.0" y="26.0" class="lbl" text-anchor="middle">ANTES</text><text x="340.0" y="26.0" class="lbl" text-anchor="middle">CONTATO</text><text x="566.0" y="26.0" class="lbl" text-anchor="middle">DEPOIS</text><use href="#gr" transform="translate(70.0,130.0) scale(34)"/><text x="70.0" y="135.0" class="ink" text-anchor="middle" font-size="12">A · 30 t</text><use href="#gr" transform="translate(176.0,130.0) scale(22)"/><text x="176.0" y="135.0" class="ink" text-anchor="middle" font-size="12">B · 8 t</text><line x1="40.0" y1="82.0" x2="100.0" y2="82.0" class="sG" stroke-width="3" marker-end="url(#ahG)"/><text x="70.0" y="70.0" class="fG" text-anchor="middle" font-size="12">0,30 m/s</text><line x1="196.0" y1="82.0" x2="176.0" y2="82.0" class="sG" stroke-width="3" marker-end="url(#ahG)"/><text x="180.0" y="70.0" class="fG" text-anchor="middle" font-size="12">0,10 m/s</text><use href="#gr" transform="translate(305.0,130.0) scale(34)"/><text x="305.0" y="135.0" class="ink" text-anchor="middle" font-size="12">A</text><use href="#gr" transform="translate(361.0,130.0) scale(22)"/><text x="361.0" y="135.0" class="ink" text-anchor="middle" font-size="12">B</text><line x1="250.0" y1="130.0" x2="420.0" y2="130.0" class="sR" stroke-width="1.2" stroke-dasharray="5 5"/><text x="420.0" y="122.0" class="mi fR" text-anchor="end">n</text><line x1="345.0" y1="186.0" x2="405.0" y2="186.0" class="sA" stroke-width="3.5" marker-end="url(#ahA)"/><text x="410.0" y="191.0" class="mi fA" text-anchor="start">+J</text><line x1="335.0" y1="206.0" x2="275.0" y2="206.0" class="sA" stroke-width="3.5" marker-end="url(#ahA)"/><text x="270.0" y="211.0" class="mi fA" text-anchor="end">−J</text><use href="#gr" transform="translate(505.0,130.0) scale(34)"/><text x="505.0" y="135.0" class="ink" text-anchor="middle" font-size="12">A</text><use href="#gr" transform="translate(590.0,130.0) scale(22)"/><text x="590.0" y="135.0" class="ink" text-anchor="middle" font-size="12">B</text><line x1="490.0" y1="82.0" x2="523.0" y2="82.0" class="sG" stroke-width="3" marker-end="url(#ahG)"/><text x="505.0" y="70.0" class="fG" text-anchor="middle" font-size="12">0,17 m/s</text><line x1="575.0" y1="82.0" x2="656.0" y2="82.0" class="sG" stroke-width="3" marker-end="url(#ahG)"/><text x="610.0" y="70.0" class="fG" text-anchor="middle" font-size="12">0,41 m/s</text><text x="340.0" y="250.0" class="ink" text-anchor="middle" font-size="13">momento antes: 30 000 × 0,30 − 8 000 × 0,10 = 8 200 kg·m/s</text><text x="340.0" y="272.0" class="ink" text-anchor="middle" font-size="13">momento depois: 30 000 × 0,165 + 8 000 × 0,405 = 8 200 kg·m/s</text><text x="340.0" y="294.0" class="fG" text-anchor="middle" font-size="13">o total não muda: só foi redistribuído entre as duas rochas</text></svg><figcaption><b>Figura 7.</b> Colisão frontal entre um asteroide de 30 t e outro de 8 t, com e = 0,6. Os impulsos são iguais e opostos, e o momento total é o mesmo antes e depois.</figcaption></figure>
+<div class="box"><b>Exemplo resolvido (Figura 7).</b> <i>v</i><sub>rel</sub> = −0,10 − 0,30 = −0,40 m/s (estão se aproximando).<br>
+<i>J</i> = 1,6 × 0,40 ÷ (1/30 000 + 1/8 000) ≈ <b>4 042 N·s</b>.<br>
+A: 0,30 − 4 042/30 000 ≈ <b>0,165 m/s</b>. B: −0,10 + 4 042/8 000 ≈ <b>0,405 m/s</b>.<br>
+Energia de movimento antes: ½·30 000·0,30² + ½·8 000·0,10² = 1 390 J. Depois: ≈ 1 067 J. Os 323 J que “sumiram” viraram calor, som e rachaduras na rocha. O momento se conserva sempre; a energia de movimento, só se <i>e</i> = 1.</div>
+<p>A massa de cada asteroide vem do seu volume e da densidade da rocha (<i>ρ</i> = 2 000 kg/m³, típica de rochas porosas):</p>
+<div class="eq"><div class="eq-m"><i>m</i> = <i>ρ</i> · <span class="fr"><span>4</span><span>3</span></span> π <i>r</i><sup>3</sup></div><span class="eq-n">(19)</span></div>
+<p>Como o raio está ao cubo, dobrar o tamanho multiplica a massa por 8. Uma rocha de raio 0,7 m tem cerca de 2,9 t; uma de raio 2,1 m chega a 78 t. Por isso as pequenas são jogadas longe e as grandes quase não desviam.</p>
+<div class="box"><b>No jogo.</b> Os asteroides só mudam de rumo quando colidem: com outro asteroide, com o módulo ou com a estação. Fora isso, seguem em linha reta, e a linha fina que sai de cada um mostra para onde vão nos próximos 20 s. Usamos <i>e</i> = 0,6 entre rochas e <i>e</i> = 0,35 entre rocha e módulo.</div>
+</section><section class="phy-sec" id="phy-giro"><h3><span class="secn">8</span>Choques fora do centro fazem girar</h3>
+<p>Se o impulso não passa pelo centro de massa, ele também produz torque, e o corpo começa a girar. É o que acontece quando um asteroide raspa o nariz do módulo.</p>
+<figure><svg class="fig" viewBox="0 0 680 290" role="img" aria-label="Choque fora do centro faz o módulo andar e girar; choque alinhado ao centro só empurra"><text x="200.0" y="26.0" class="lbl" text-anchor="middle">CHOQUE PERTO DO NARIZ</text><text x="560.0" y="26.0" class="lbl" text-anchor="middle">CHOQUE NO CENTRO</text><line x1="410.0" y1="20.0" x2="410.0" y2="280.0" class="sL" stroke-width="1"/><use href="#gm" transform="translate(190.0,150.0) rotate(0.0) scale(1.2)" opacity="1.0"/><use href="#gr" transform="translate(260.0,206.0) scale(32)"/><line x1="190" y1="150" x2="260" y2="174" class="sR" stroke-width="2" stroke-dasharray="5 4"/><text x="216.0" y="180.0" class="mi fR" text-anchor="start">r</text><line x1="260.0" y1="174.0" x2="260.0" y2="108.0" class="sA" stroke-width="4" marker-end="url(#ahA)"/><text x="270.0" y="122.0" class="mi fA" text-anchor="start">J</text><circle cx="260" cy="174" r="4" class="fA"/><text x="270.0" y="180.0" class="mi ink" text-anchor="start">P</text><line x1="190.0" y1="150.0" x2="190.0" y2="72.0" class="sG" stroke-width="3" marker-end="url(#ahG)"/><text x="180.0" y="82.0" class="mi fG" text-anchor="end">Δv</text><path d="M291.5,186.9 A108,108 0 0 0 244.0,56.5" class="sR" stroke-width="3" fill="none" marker-end="url(#ahR)"/><text x="302.0" y="58.0" class="mi fR" text-anchor="start">Δω</text><text x="200.0" y="262.0" class="ink" text-anchor="middle" font-size="12">o empurrão desloca o centro de massa</text><text x="200.0" y="278.0" class="fR" text-anchor="middle" font-size="12">e faz o módulo girar</text><use href="#gm" transform="translate(560.0,150.0) rotate(0.0) scale(0.8)" opacity="1.0"/><use href="#gr" transform="translate(560.0,188.0) scale(22)"/><line x1="560.0" y1="164.0" x2="560.0" y2="90.0" class="sA" stroke-width="4" marker-end="url(#ahA)"/><text x="570.0" y="104.0" class="mi fA" text-anchor="start">J</text><text x="560.0" y="262.0" class="ink" text-anchor="middle" font-size="12">r e n na mesma linha: r × n = 0</text><text x="560.0" y="278.0" class="fG" text-anchor="middle" font-size="12">só empurra, não gira</text></svg><figcaption><b>Figura 8.</b> À esquerda, o impulso J age no ponto P, longe do centro de massa: o módulo ganha velocidade Δv e rotação Δω. À direita, o impulso passa pelo centro: só empurra.</figcaption></figure>
+<p>Chamando de <span class="vec">r</span> a seta que vai do centro de massa até o ponto de contato P, a variação de rotação é:</p>
+<div class="eq"><div class="eq-m">Δω = <span class="fr"><span>(<span class="vec">r</span> × <span class="vec">n</span>) · <i>J</i></span><span><i>I</i></span></span></div><span class="eq-n">(20)</span></div>
+<p>O símbolo × é o <b>produto vetorial</b>. Em duas dimensões ele é simples: <i>r</i><sub>x</sub>·<i>n</i><sub>y</sub> − <i>r</i><sub>y</sub>·<i>n</i><sub>x</sub>. Ele vale zero quando <span class="vec">r</span> e <span class="vec">n</span> estão na mesma linha (choque centralizado) e é máximo quando são perpendiculares. Na prática, ele faz o papel do braço <i>d</i> da equação (8).</p>
+<p>Um detalhe importante: um ponto na ponta de um corpo que gira se move mais rápido que o centro. Por isso, a velocidade usada na colisão é a do ponto de contato:</p>
+<div class="eq"><div class="eq-m"><span class="vec">v</span><sub>P</sub> = <span class="vec">v</span> + ω × <span class="vec">r</span></div><span class="eq-n">(21)</span></div>
+<p>Juntando as equações (18), (20) e (21), o impulso entre o módulo e uma rocha é:</p>
+<div class="eq"><div class="eq-m"><i>J</i> = <span class="fr"><span>−(1 + <i>e</i>) · <i>v</i><sub>rel</sub></span><span><span class="fr"><span>1</span><span><i>M</i></span></span> + <span class="fr"><span>1</span><span><i>m</i></span></span> + <span class="fr"><span>(<span class="vec">r</span> × <span class="vec">n</span>)<sup>2</sup></span><span><i>I</i></span></span></span></span></div><span class="eq-n">(22)</span></div>
+<div class="box"><b>Teste feito no jogo.</b> Simulamos uma rocha de 41 t batendo de raspão no módulo de 9 t. O momento linear total ficou exatamente igual antes e depois. O momento angular variou só 0,02%, por causa de um pequeno ajuste de posição que impede os dois corpos de ficarem um dentro do outro. A estação, com cerca de 420 t, é tratada como fixa: num choque, o movimento dela é desprezível.</div>
+</section><section class="phy-sec" id="phy-acoplamento"><h3><span class="secn">9</span>Acoplamento: por que tão devagar?</h3>
+<p>O acoplamento só é aceito se cinco condições valerem ao mesmo tempo. A razão principal é a <b>energia cinética</b>, a energia do movimento:</p>
+<div class="eq"><div class="eq-m"><i>E</i><sub>c</sub> = <span class="fr"><span>1</span><span>2</span></span> <i>m</i> · <i>v</i><sup>2</sup></div><span class="eq-n">(23)</span></div>
+<p>A velocidade está ao quadrado. Triplicar a velocidade multiplica a energia por 9. Para o módulo de 9 t:</p>
+<div class="box">A 0,25 m/s: <i>E</i><sub>c</sub> = ½ × 9 000 × 0,25² ≈ <b>281 J</b>, parecido com soltar um saco de cimento de 50 kg de 57 cm de altura.<br>
+A 0,8 m/s: <i>E</i><sub>c</sub> = ½ × 9 000 × 0,8² = <b>2 880 J</b>, como soltar o mesmo saco de quase 6 m de altura. Os mecanismos de acoplamento não aguentam isso.</div>
+<figure><svg class="fig" viewBox="0 0 680 268" role="img" aria-label="Critérios de acoplamento: velocidade de aproximação, velocidade lateral, atitude, rotação e alinhamento"><rect x="470" y="70" width="190" height="160" rx="6" class="mBody"/><rect x="458" y="112" width="14" height="76" rx="2" class="mGrey"/><rect x="452" y="128" width="8" height="44" class="mDark"/><text x="565.0" y="156.0" class="dimdark" text-anchor="middle" font-size="13">porto da ISS</text><line x1="20.0" y1="150.0" x2="452.0" y2="150.0" class="sD" stroke-width="1.2" stroke-dasharray="5 5"/><rect x="396" y="125" width="56" height="50" class="band"/><line x1="410" y1="125" x2="410" y2="175" class="sA" stroke-width="1.5" marker-start="url(#ahA)" marker-end="url(#ahA)"/><text x="424.0" y="194.0" class="fA" text-anchor="middle" font-size="12">± 0,25 m</text><use href="#gm" transform="translate(300.0,156.0) rotate(-3.0) scale(1.0)" opacity="1.0"/><line x1="300.0" y1="156.0" x2="449.8" y2="148.1" class="sC" stroke-width="1.2" stroke-dasharray="5 5"/><line x1="300.0" y1="156.0" x2="460.0" y2="156.0" class="sD" stroke-width="1" stroke-dasharray="5 5"/><path d="M396.0,156.0 A96,96 0 0 0 395.1,142.6" class="sR" stroke-width="2" fill="none" marker-end="url(#ahR)"/><text x="370.0" y="116.0" class="fR" text-anchor="middle" font-size="12">atitude θ ≤ 4°</text><line x1="230.0" y1="230.0" x2="330.0" y2="230.0" class="sG" stroke-width="3" marker-end="url(#ahG)"/><text x="280.0" y="252.0" class="fG" text-anchor="middle" font-size="12">aproximação ≤ 0,25 m/s</text><line x1="110.0" y1="226.0" x2="110.0" y2="196.0" class="sG" stroke-width="3" marker-end="url(#ahG)"/><text x="110.0" y="252.0" class="fG" text-anchor="middle" font-size="12">lateral ≤ 0,10 m/s</text><path d="M266.3,184.3 A44,44 0 0 1 261.9,134.0" class="sR" stroke-width="2" fill="none" marker-end="url(#ahR)"/><text x="246.0" y="202.0" class="fR" text-anchor="end" font-size="12">ω ≤ 2 °/s</text><text x="20.0" y="40.0" class="lbl" text-anchor="start">OS CINCO CRITÉRIOS PRECISAM VALER AO MESMO TEMPO</text></svg><figcaption><b>Figura 9.</b> Os cinco critérios do jogo. A sonda no nariz do módulo precisa tocar o porto dentro da faixa laranja, devagar, reto e sem girar.</figcaption></figure>
+<p>Na vida real os limites são ainda mais apertados. Veja a comparação com o Padrão Internacional de Acoplamento (IDSS), usado nos portos novos da ISS:</p>
+<div class="tbl"><table>
+<thead><tr><th>Critério</th><th>No jogo</th><th>Na vida real (IDSS)</th></tr></thead>
+<tbody>
+<tr><td>Velocidade de aproximação</td><td>até 0,25 m/s</td><td>0,05 a 0,10 m/s</td></tr>
+<tr><td>Velocidade lateral</td><td>até 0,10 m/s</td><td>até 0,04 m/s</td></tr>
+<tr><td>Desalinhamento lateral</td><td>até 0,25 m</td><td>até 0,10 m</td></tr>
+<tr><td>Ângulo (atitude)</td><td>até 4°</td><td>até 4°</td></tr>
+<tr><td>Rotação</td><td>até 2 °/s</td><td>até 0,20 °/s</td></tr>
+</tbody></table></div>
+<p class="src">Fonte dos valores reais: NASA, <i>International Docking System Standard (IDSS) Interface Definition Document</i>, Revisão F (2022), Tabela 3.3.1.1-2, “Initial Contact Conditions”.</p>
+</section><section class="phy-sec" id="phy-gravidade"><h3><span class="secn">10</span>E a gravidade? Tudo cai junto</h3>
+<p>A ISS está a cerca de 400 km de altura. Lá, a gravidade ainda é forte: usando a lei da gravitação de Newton, ela vale cerca de 89% da gravidade na superfície.</p>
+<div class="eq"><div class="eq-m"><i>g</i><sub>400 km</sub> = <i>g</i><sub>0</sub> · (<span class="fr"><span><i>R</i><sub>T</sub></span><span><i>R</i><sub>T</sub> + <i>h</i></span></span>)<sup>2</sup> = 9,81 · (<span class="fr"><span>6 371</span><span>6 771</span></span>)<sup>2</sup> ≈ 8,7 m/s²</div><span class="eq-n">(24)</span></div>
+<p>Então por que os astronautas flutuam? Porque a estação está <b>caindo</b> o tempo todo. Ela anda tão rápido para o lado (cerca de 28 000 km/h, segundo a NASA) que, enquanto cai, a superfície curva da Terra “foge” embaixo dela. Ela cai em volta da Terra, sem nunca chegar ao chão, e completa uma volta a cada 90 minutos mais ou menos. Isso é estar em <b>órbita</b>.</p>
+<figure><svg class="fig" viewBox="0 0 680 386" role="img" aria-label="Módulo e ISS estão em órbita e caem juntos em direção à Terra, por isso o jogo mostra só o movimento de um em relação ao outro"><circle cx="210" cy="200" r="108" class="earth"/><circle cx="210" cy="200" r="114" class="atm"/><circle cx="210" cy="200" r="160" class="sD" fill="none" stroke-width="1.2" stroke-dasharray="4 6"/><text x="210.0" y="205.0" class="ink" text-anchor="middle" font-size="14">Terra</text><rect x="203" y="35" width="14" height="10" rx="2" class="mBody"/><line x1="210.0" y1="40.0" x2="320.0" y2="40.0" class="sG" stroke-width="3" marker-end="url(#ahG)"/><text x="326.0" y="44.0" class="fG" text-anchor="start" font-size="12">≈ 7,8 km/s</text><line x1="210.0" y1="44.0" x2="210.0" y2="102.0" class="sA" stroke-width="3" marker-end="url(#ahA)"/><text x="202.0" y="94.0" class="fA" text-anchor="end" font-size="12">gravidade</text><text x="210.0" y="372.0" class="dim" text-anchor="middle" font-size="12">a ≈ 400 km de altura, uma volta a cada ≈ 90 min</text><rect x="408" y="30" width="264" height="310" rx="6" class="box"/><line x1="218.0" y1="34.0" x2="408.0" y2="30.0" class="sL" stroke-width="1" stroke-dasharray="5 5"/><line x1="218.0" y1="46.0" x2="408.0" y2="340.0" class="sL" stroke-width="1" stroke-dasharray="5 5"/><text x="540.0" y="54.0" class="lbl" text-anchor="middle">ZOOM: A CENA DO JOGO</text><rect x="580" y="110" width="58" height="34" rx="4" class="mBody"/><text x="609.0" y="160.0" class="dim" text-anchor="middle" font-size="11">ISS</text><use href="#gm" transform="translate(470.0,127.0) rotate(0.0) scale(0.33)" opacity="1.0"/><line x1="452.0" y1="196.0" x2="504.0" y2="196.0" class="sG" stroke-width="3" marker-end="url(#ahG)"/><line x1="472.0" y1="214.0" x2="472.0" y2="258.0" class="sA" stroke-width="3" marker-end="url(#ahA)"/><line x1="586.0" y1="196.0" x2="638.0" y2="196.0" class="sG" stroke-width="3" marker-end="url(#ahG)"/><line x1="606.0" y1="214.0" x2="606.0" y2="258.0" class="sA" stroke-width="3" marker-end="url(#ahA)"/><text x="540.0" y="286.0" class="ink" text-anchor="middle" font-size="12">mesma velocidade e mesma queda:</text><text x="540.0" y="304.0" class="fG" text-anchor="middle" font-size="12">um em relação ao outro,</text><text x="540.0" y="322.0" class="fG" text-anchor="middle" font-size="12">quase parados</text></svg><figcaption><b>Figura 10.</b> O módulo e a ISS estão na mesma órbita, com quase a mesma velocidade e a mesma queda. No jogo vemos só o movimento de um em relação ao outro, que é pequeno e lento.</figcaption></figure>
+<p>O módulo também está em órbita, colado na estação. Os dois caem juntos, com a mesma aceleração. Por isso, olhando de dentro da estação, é como se não houvesse gravidade: só aparece o movimento de um em relação ao outro. É esse movimento relativo que o jogo mostra.</p>
+<div class="box"><b>A simplificação do jogo.</b> Isso não é perfeito. Pequenas diferenças de altura e um efeito parecido com o de Coriolis fazem objetos próximos em órbita derivarem devagar uns em relação aos outros. Para o módulo a 0,25 m/s, essas acelerações ficam perto de 0,0006 m/s², umas 700 vezes menores que a dos jatos do jogo. Mas, em dois minutos, poderiam desviar o módulo uns 4 m. Na vida real, os computadores de bordo compensam isso. No jogo, deixamos de fora para ficar mais simples de entender e de jogar.</div>
+</section><section class="phy-sec" id="phy-numeros"><h3><span class="secn">11</span>Os números do jogo</h3>
+<p>Todos os valores usados na simulação, para você conferir as contas:</p>
+<div class="tbl"><table>
+<thead><tr><th>Grandeza</th><th>Valor</th><th>De onde vem</th></tr></thead>
+<tbody>
+<tr><td>Massa do módulo <i>M</i></td><td>9 000 kg</td><td>escolhido</td></tr>
+<tr><td>Momento de inércia <i>I</i></td><td>≈ 16 150 kg·m²</td><td>equação (9)</td></tr>
+<tr><td>Aceleração de cada jato</td><td>0,42 m/s²</td><td>escolhido</td></tr>
+<tr><td>Força de cada jato</td><td>≈ 3 780 N</td><td>equação (5)</td></tr>
+<tr><td>Aceleração angular</td><td>10 °/s²</td><td>escolhido</td></tr>
+<tr><td>Torque de rotação</td><td>≈ 2 820 N·m</td><td>equação (10)</td></tr>
+<tr><td>Passo de tempo Δ<i>t</i></td><td>1/120 s</td><td>seção 6</td></tr>
+<tr><td>Densidade dos asteroides</td><td>2 000 kg/m³</td><td>rocha porosa</td></tr>
+<tr><td>Massa dos asteroides</td><td>2,9 a 78 t</td><td>equação (19)</td></tr>
+<tr><td>Restituição rocha-rocha</td><td>0,6</td><td>escolhido</td></tr>
+<tr><td>Restituição rocha-módulo</td><td>0,35</td><td>escolhido</td></tr>
+<tr><td>Restituição módulo-estação</td><td>0,3</td><td>escolhido</td></tr>
+<tr><td>Batida que destrói (estação)</td><td>0,8 m/s</td><td>escolhido</td></tr>
+<tr><td>Batida que destrói (asteroide)</td><td>0,6 m/s</td><td>escolhido</td></tr>
+</tbody></table></div>
+<div class="box"><b>Para ir além: por que o combustível acaba?</b> Cada jato joga massa fora. Quanto de velocidade uma nave consegue ganhar no total depende de quanto gás ela carrega e da velocidade com que ele sai. Essa é a <b>equação do foguete</b>, de Konstantin Tsiolkovsky:
+<div class="eq"><div class="eq-m">Δ<i>v</i> = <i>v</i><sub>e</sub> · ln <span class="fr"><span><i>m</i><sub>inicial</sub></span><span><i>m</i><sub>final</sub></span></span></div><span class="eq-n">(25)</span></div>
+Gás frio, como nitrogênio, sai a cerca de 700 m/s, bem mais devagar que o escape de um motor de foguete. Por isso cada toque nos jatos custa caro, e pilotar com economia faz parte do desafio.</div>
+</section>
+        <p class="end">Pronto para tentar de novo? <button class="cta" id="phyBack">Voltar ao jogo</button></p>
+      </article>
+    </div>
+  </section>
+
+  <div id="overlay">
+    <div class="card" id="card">
+      <p class="sub">Missão de acoplamento · órbita baixa · 408 km</p>
+      <h1>Acoplamento <span>ISS</span></h1>
+      <p>Seu módulo está parado a cerca de 36 metros do adaptador de acoplamento da Estação Espacial Internacional. Não há atrito: cada impulso dos jatos de ar comprimido muda sua velocidade, e o módulo segue derivando até que um jato oposto o freie. O mesmo vale para a rotação.</p>
+      <ul>
+        <li><b>D / A</b>: jato pela direita / esquerda do módulo (empurra para o lado oposto)</li>
+        <li><b>W / S</b>: jato por cima / por baixo</li>
+        <li><b>Q / E</b>: par de jatos de rotação anti-horária / horária</li>
+        <li><b>Mouse ou toque</b>: segure em volta do módulo para disparar o jato daquele lado</li>
+        <li>Desvie dos <b>asteroides</b> que cruzam o corredor: elas seguem em linha reta e colidem entre si; um raspão lento troca momento com o módulo, um impacto rápido o destrói</li>
+        <li>Encoste a sonda (ponta do nariz) no anel do porto respeitando os cinco critérios</li>
+      </ul>
+      <div class="mode" role="group" aria-label="Asteroides"><button class="seg" id="segOn" data-ast="1">Com asteroides</button><button class="seg" id="segOff" data-ast="0">Sem asteroides</button></div>
+      <button class="cta" id="bStart">Iniciar missão</button><button class="ghost" id="bPhy2">Entenda a física</button>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script>
+(() => {
+'use strict';
+// ---------------------------------------------------------------- constants
+const ACC = 0.42;               // m/s² de cada jato de translação
+const ANG = 10 * Math.PI / 180; // rad/s² do par de rotação
+const FUEL_T = 1.15;            // %/s por jato de translação
+const FUEL_R = 0.6;             // %/s por par de rotação
+const PORT_X = 8;               // face do porto de acoplamento
+const TIP = 2.75;               // ponta da sonda no eixo do módulo
+const CRASH_V = 0.8;            // m/s de impacto destrutivo
+const LIM = { vx: 0.25, vy: 0.10, th: 4, w: 2, dy: 0.25 };
+const HULL = { x0: -2.3, x1: 2.1, y: 0.9 };
+const BOXES = [ // estação, em coordenadas de mundo (alinhada aos eixos)
+  { x0: 8, x1: 9.6, y0: -0.95, y1: 0.95 },
+  { x0: 9.6, x1: 14.2, y0: -2.1, y1: 2.1 },
+  { x0: 14.2, x1: 23, y0: -2.1, y1: 2.1 },
+  { x0: 10.8, x1: 13.2, y0: 2.1, y1: 6.2 },
+  { x0: 11.2, x1: 12.8, y0: -4.6, y1: -2.1 },
+];
+const NOZ = {
+  right:  [[2.1, 0.45, 1, 0], [2.1, -0.45, 1, 0]],
+  left:   [[-2.3, 0.6, -1, 0], [-2.3, -0.6, -1, 0]],
+  top:    [[-0.8, 0.9, 0, 1], [0.6, 0.9, 0, 1]],
+  bottom: [[-0.8, -0.9, 0, -1], [0.6, -0.9, 0, -1]],
+  ccw:    [[1.25, -0.9, 0, -1], [-1.6, 0.9, 0, 1]],
+  cw:     [[1.25, 0.9, 0, 1], [-1.6, -0.9, 0, -1]],
+};
+const JETS = Object.keys(NOZ);
+const KEYMAP = { KeyD: 'right', KeyA: 'left', KeyW: 'top', KeyS: 'bottom', KeyQ: 'ccw', KeyE: 'cw' };
+const deg = r => r * 180 / Math.PI;
+const fmt = (v, d, sign) => (sign && v >= 0 ? '+' : '') + v.toFixed(d).replace('.', ',').replace('-', '−');
+
+// ---------------------------------------------------------------- renderer & scene
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x02040a);
+const camera = new THREE.PerspectiveCamera(38, 1, 0.5, 3000);
+
+const sun = new THREE.DirectionalLight(0xfff4e0, 2.2);
+sun.position.set(-30, 26, 34);
+scene.add(sun);
+scene.add(new THREE.HemisphereLight(0x0d1424, 0x2a5a9a, 0.55)); // brilho azul da Terra vindo de baixo
+scene.add(new THREE.AmbientLight(0x404858, 0.25));
+
+// ---------------------------------------------------------------- helpers
+function canvasTex(w, h, draw) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4;
+  return t;
+}
+const std = (color, rough = 0.6, metal = 0.15, extra = {}) => new THREE.MeshStandardMaterial(Object.assign({ color, roughness: rough, metalness: metal }, extra));
+function cylX(r1, r2, len, mat, seg = 32, open = false) {
+  const g = new THREE.CylinderGeometry(r2, r1, len, seg, 1, open); g.rotateZ(-Math.PI / 2);
+  return new THREE.Mesh(g, mat);
+}
+
+// ---------------------------------------------------------------- stars
+function starLayer(n, size, radius, tint) {
+  const pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const u = Math.random() * 2 - 1, a = Math.random() * Math.PI * 2, s = Math.sqrt(1 - u * u);
+    pos.set([radius * s * Math.cos(a), radius * u, radius * s * Math.sin(a)], i * 3);
+    const b = 0.35 + Math.random() * 0.65, t = Math.random();
+    col.set([b * (t < .2 ? 0.8 : 1), b * (t < .2 ? 0.88 : 0.97), b * (t > .85 ? 0.8 : 1) * tint], i * 3);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  return new THREE.Points(g, new THREE.PointsMaterial({ size, sizeAttenuation: false, vertexColors: true, depthWrite: false }));
+}
+const stars = new THREE.Group();
+stars.add(starLayer(2600, 1.2, 1500, 1), starLayer(500, 2.2, 1400, 1.05));
+scene.add(stars);
+
+// ---------------------------------------------------------------- Earth
+function hash(x, y, s) { let h = Math.imul(x, 374761393) ^ Math.imul(y, 668265263) ^ Math.imul(s, 2147483647); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967295; }
+function vnoise(x, y, per, s) {
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  const x0 = ((xi % per) + per) % per, x1 = (x0 + 1) % per;
+  const a = hash(x0, yi, s), b = hash(x1, yi, s), c = hash(x0, yi + 1, s), d = hash(x1, yi + 1, s);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+function fbm(x, y, per, s, oct) { let sum = 0, amp = 0.5, f = 1; for (let o = 0; o < oct; o++) { sum += amp * vnoise(x * f, y * f, per * f, s + o); amp *= 0.5; f *= 2; } return sum; }
+const EW = 768, EH = 384, PER = 6;
+const earthTex = canvasTex(EW, EH, (ctx) => {
+  const img = ctx.createImageData(EW, EH), d = img.data;
+  for (let py = 0; py < EH; py++) {
+    const lat = Math.abs(py / EH - 0.5) * 2;
+    for (let px = 0; px < EW; px++) {
+      const n = fbm(px / EW * PER, py / EH * PER / 2, PER, 7, 5);
+      const i = (py * EW + px) * 4;
+      let r, g, b;
+      if (lat > 0.86 || (lat > 0.78 && n > 0.45)) { r = 230; g = 238; b = 245; }
+      else if (n > 0.6) {
+        const k = (n - 0.6) * 4, dry = fbm(px / EW * PER * 2, py / EH * PER, PER * 2, 31, 3);
+        if (dry > 0.55 && lat < 0.5) { r = 170 + k * 40; g = 140 + k * 20; b = 95; }
+        else { r = 52 + k * 60; g = 92 + k * 40; b = 48 + k * 10; }
+      } else {
+        const k = Math.max(0, n - 0.38) * 3.5;
+        r = 8 + k * 20; g = 38 + k * 60; b = 92 + k * 70;
+      }
+      d[i] = r; d[i + 1] = g; d[i + 2] = b; d[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+});
+const cloudTex = canvasTex(EW, EH, (ctx) => {
+  const img = ctx.createImageData(EW, EH), d = img.data;
+  for (let py = 0; py < EH; py++) for (let px = 0; px < EW; px++) {
+    const n = fbm(px / EW * PER * 1.5, py / EH * PER * 0.9, PER * 1.5, 91, 5);
+    const a = Math.max(0, Math.min(1, (n - 0.5) * 3.2));
+    const i = (py * EW + px) * 4; d[i] = d[i + 1] = d[i + 2] = 255; d[i + 3] = a * 235;
+  }
+  ctx.putImageData(img, 0, 0);
+});
+const earth = new THREE.Group();
+const ER = 360;
+const earthMesh = new THREE.Mesh(new THREE.SphereGeometry(ER, 96, 64), new THREE.MeshStandardMaterial({ map: earthTex, roughness: 0.9, metalness: 0 }));
+const clouds = new THREE.Mesh(new THREE.SphereGeometry(ER * 1.006, 96, 64), new THREE.MeshStandardMaterial({ map: cloudTex, transparent: true, depthWrite: false, roughness: 1 }));
+const atmo = new THREE.Mesh(new THREE.SphereGeometry(ER * 1.06, 96, 64), new THREE.ShaderMaterial({
+  side: THREE.BackSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  vertexShader: 'varying vec3 vN; varying vec3 vP; void main(){ vN = normalize(normalMatrix*normal); vec4 mv = modelViewMatrix*vec4(position,1.0); vP = mv.xyz; gl_Position = projectionMatrix*mv; }',
+  fragmentShader: 'varying vec3 vN; varying vec3 vP; void main(){ float f = 1.0 - abs(dot(vN, normalize(-vP))); float i = pow(f, 2.2) * 1.4; gl_FragColor = vec4(0.32,0.62,1.0,1.0) * i; }'
+}));
+earth.add(earthMesh, clouds, atmo);
+earth.position.set(10, -ER - 85, -260);
+earth.rotation.set(1.25, 0, 0.15);
+scene.add(earth);
+
+// ---------------------------------------------------------------- textures for hardware
+const solarTex = canvasTex(128, 512, (ctx, w, h) => {
+  ctx.fillStyle = '#b9922e'; ctx.fillRect(0, 0, w, h);
+  const cw = 28, ch = 22;
+  for (let y = 6; y < h - 6; y += ch + 2) for (let x = 6; x < w - 6; x += cw + 2) {
+    const g = ctx.createLinearGradient(x, y, x + cw, y + ch); g.addColorStop(0, '#1d2f63'); g.addColorStop(1, '#0d1838');
+    ctx.fillStyle = g; ctx.fillRect(x, y, cw, ch);
+  }
+});
+const panelTex = canvasTex(256, 128, (ctx, w, h) => {
+  ctx.fillStyle = '#e9edf1'; ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = 'rgba(80,90,105,.35)'; ctx.lineWidth = 1;
+  for (let x = 0; x < w; x += 32) { ctx.beginPath(); ctx.moveTo(x + .5, 0); ctx.lineTo(x + .5, h); ctx.stroke(); }
+  for (let y = 0; y < h; y += 42) { ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(w, y + .5); ctx.stroke(); }
+});
+panelTex.wrapS = panelTex.wrapT = THREE.RepeatWrapping;
+const matWhite = std(0xffffff, 0.55, 0.1, { map: panelTex });
+const matGrey = std(0x8b939e, 0.45, 0.6);
+const matDark = std(0x2a2f38, 0.5, 0.5);
+const matGold = std(0xd9a440, 0.32, 0.85);
+const matSolar = std(0xffffff, 0.35, 0.45, { map: solarTex, side: THREE.DoubleSide });
+const matRad = std(0xf3f5f7, 0.7, 0.05, { side: THREE.DoubleSide });
+
+// ---------------------------------------------------------------- station
+const station = new THREE.Group();
+(function buildStation() {
+  // adaptador de acoplamento (PMA)
+  const pma = cylX(0.95, 1.25, 1.6, matWhite); pma.position.x = 8.8; station.add(pma);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.72, 0.1, 12, 40), matGrey); ring.rotation.y = Math.PI / 2; ring.position.x = PORT_X + 0.02; station.add(ring);
+  const drogue = new THREE.Mesh(new THREE.CircleGeometry(0.62, 32), matDark); drogue.rotation.y = -Math.PI / 2; drogue.position.x = PORT_X + 0.01; station.add(drogue);
+  // nó e laboratório
+  const node = cylX(2.1, 2.1, 4.6, matWhite); node.position.x = 11.9; station.add(node);
+  const lab = cylX(2.1, 2.1, 8.8, matWhite); lab.position.x = 18.6; station.add(lab);
+  for (const x of [9.6, 14.2, 23]) { const r = cylX(2.18, 2.18, 0.22, matGrey); r.position.x = x; station.add(r); }
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(2.1, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), matWhite); cap.rotation.z = -Math.PI / 2; cap.position.x = 23.1; station.add(cap);
+  // módulo vertical superior e cúpula inferior
+  const up = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 4.1, 32), matWhite); up.position.set(12, 4.15, 0); station.add(up);
+  const upCap = new THREE.Mesh(new THREE.CylinderGeometry(1.28, 1.28, 0.2, 32), matGrey); upCap.position.set(12, 6.2, 0); station.add(upCap);
+  const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 2.5, 8), matGrey); cup.position.set(12, -3.35, 0); station.add(cup);
+  const cupTop = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.8, 0.5, 8), std(0x334455, 0.1, 0.9)); cupTop.position.set(12, -4.85, 0); cupTop.rotation.x = Math.PI; station.add(cupTop);
+  // treliça principal (perpendicular ao plano do jogo) com painéis solares
+  const truss = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.3, 46), matGrey); truss.position.set(18.5, 2.9, 0); station.add(truss);
+  for (let z = -22; z <= 22; z += 2) { const strut = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.12, 0.12), matDark); strut.position.set(18.5, 3.55, z); station.add(strut); }
+  for (const zc of [-19, -12.5, 12.5, 19]) {
+    for (const s of [1, -1]) {
+      const wing = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 13), matSolar);
+      wing.position.set(18.5, 2.9 + s * 7.6, zc); wing.rotation.y = 0.3; station.add(wing);
+      const mast = new THREE.Mesh(new THREE.BoxGeometry(0.12, 13, 0.12), matGold); mast.position.copy(wing.position); station.add(mast);
+    }
+  }
+  for (const zc of [-6, 6]) { const rad = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 7), matRad); rad.position.set(18.5, -1.2, zc); rad.rotation.set(Math.PI / 2, 0, 0.5); station.add(rad); }
+})();
+// farol do porto: muda de cor quando o módulo está dentro dos critérios
+const beaconMat = new THREE.MeshBasicMaterial({ color: 0xffb547 });
+const beacons = [];
+for (const y of [1.2, -1.2]) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), beaconMat); b.position.set(PORT_X + 0.25, y, 0.5); station.add(b); beacons.push(b); }
+const beaconLight = new THREE.PointLight(0xffb547, 0.6, 6); beaconLight.position.set(PORT_X - 0.5, 0, 1); station.add(beaconLight);
+scene.add(station);
+
+// corredor de aproximação
+const corridorMat = new THREE.LineDashedMaterial({ color: 0x7fe3ff, dashSize: 0.5, gapSize: 0.5, transparent: true, opacity: 0.28 });
+const corridor = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-36, 0, 0), new THREE.Vector3(PORT_X, 0, 0)]), corridorMat);
+corridor.computeLineDistances(); scene.add(corridor);
+for (const s of [1, -1]) {
+  const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-6, s * 3.5, 0), new THREE.Vector3(PORT_X, s * 0.25, 0)]),
+    new THREE.LineBasicMaterial({ color: 0x7fe3ff, transparent: true, opacity: 0.12 }));
+  scene.add(l);
+}
+
+// trajetória prevista (inércia pura)
+const PRED_N = 40;
+const predGeo = new THREE.BufferGeometry(); predGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(PRED_N * 3), 3));
+const pred = new THREE.Line(predGeo, new THREE.LineDashedMaterial({ color: 0xffb547, dashSize: 0.35, gapSize: 0.35, transparent: true, opacity: 0.55 }));
+scene.add(pred);
+
+// ---------------------------------------------------------------- asteroides (deriva inercial, sem atrito)
+const AST = [];
+const AST_N = 9;
+const rockMat = new THREE.MeshStandardMaterial({ color: 0x3d342d, roughness: 1, metalness: 0, flatShading: true });
+for (let k = 0; k < AST_N; k++) {
+  const g = new THREE.IcosahedronGeometry(1, 3), pa = g.attributes.position;
+  const s1 = Math.random() * 10, s2 = Math.random() * 10, s3 = Math.random() * 10;
+  const craters = Array.from({ length: 4 }, () => { const v = new THREE.Vector3().randomDirection ? new THREE.Vector3().randomDirection() : new THREE.Vector3(Math.random() - .5, Math.random() - .5, Math.random() - .5).normalize(); return [v, 0.25 + Math.random() * 0.25]; });
+  const v = new THREE.Vector3();
+  for (let i = 0; i < pa.count; i++) {
+    v.fromBufferAttribute(pa, i).normalize();
+    let d = 1 + 0.17 * Math.sin(3.1 * v.x + s1) * Math.cos(2.6 * v.y + s2) + 0.09 * Math.sin(6.3 * v.z + s3) + 0.05 * Math.sin(11 * v.x + 7 * v.y);
+    for (const [c, cr] of craters) { const t = v.distanceTo(c); if (t < cr) d -= 0.12 * (1 - (t / cr) ** 2); }
+    v.multiplyScalar(d); pa.setXYZ(i, v.x, v.y, v.z);
+  }
+  g.center(); g.computeVertexNormals();
+  const m = new THREE.Mesh(g, rockMat);
+  scene.add(m);
+  AST.push({ mesh: m, x: 0, y: 0, vx: 0, vy: 0, r: 1, m: 1, active: true, spin: new THREE.Vector3() });
+}
+const ROCK_RHO = 2000;   // kg/m³ (condrito poroso)
+const M_MOD = 9000;     // kg, massa do módulo
+const I_MOD = M_MOD * (3 * 0.85 ** 2 + 4.4 ** 2) / 12;   // kg·m², cilindro em torno do eixo transversal
+const E_ROCK = 0.6;     // coeficiente de restituição rocha-rocha
+let viewHalfH = 20, viewHalfW = 36;   // meia-altura/largura visível no plano do jogo (atualizadas pela câmera)
+const FIELD_C = [-3, 0];
+function sizeRock(a) {
+  a.r = 0.7 + Math.random() * 1.4;
+  a.m = ROCK_RHO * 4 / 3 * Math.PI * a.r ** 3;
+  a.spin.set(Math.random() - .5, Math.random() - .5, Math.random() - .5).multiplyScalar(0.6);
+  a.mesh.scale.set(a.r, a.r, a.r);
+  a.mesh.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
+}
+const fits = (a, x, y) => AST.every(b => b === a || !b.active || Math.hypot(x - b.x, y - b.y) > a.r + b.r + 1.2);
+let asteroidsOn = true;
+try { asteroidsOn = localStorage.getItem('iss-asteroides') !== '0'; } catch (e) {}
+// rota aleatória: direção e velocidade sorteadas; quem entra de fora mira um ponto aleatório do campo
+function randomRoute(a, x, y, aimInside) {
+  const sp = 0.06 + Math.random() * 0.26;
+  let ang = Math.random() * Math.PI * 2;
+  if (aimInside) { const tx = -24 + Math.random() * 28, ty = (Math.random() * 2 - 1) * 12; ang = Math.atan2(ty - y, tx - x); }
+  a.vx = Math.cos(ang) * sp; a.vy = Math.sin(ang) * sp;
+}
+function placeAsteroids() {
+  for (const a of AST) { a.active = false; a.mesh.visible = false; }
+  if (!asteroidsOn) return;
+  for (const a of AST) {
+    sizeRock(a);
+    for (let tries = 0; tries < 80; tries++) {
+      const x = -24 + Math.random() * 27, y = (Math.random() * 2 - 1) * 13;
+      if (Math.hypot(x - S.x, y - S.y) > 7 + a.r && fits(a, x, y)) { a.x = x; a.y = y; a.active = true; break; }
+    }
+    randomRoute(a, a.x, a.y, false);
+    a.mesh.visible = a.active; a.mesh.position.set(a.x, a.y, 0);
+  }
+}
+// uma rocha que saiu para longe é substituída por outra que chega de fora do campo de visão
+function spawnRock(a) {
+  if (!asteroidsOn) return;
+  sizeRock(a);
+  const R0 = Math.hypot(viewHalfW, viewHalfH) + 4 + a.r, ang = Math.random() * Math.PI * 2;
+  const x = FIELD_C[0] + Math.cos(ang) * R0, y = FIELD_C[1] + Math.sin(ang) * R0;
+  if (!fits(a, x, y)) return;
+  a.x = x; a.y = y; a.active = true; a.mesh.visible = true;
+  randomRoute(a, x, y, true);
+}
+const astPathGeo = new THREE.BufferGeometry();
+astPathGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(AST_N * 6), 3));
+const astPaths = new THREE.LineSegments(astPathGeo, new THREE.LineBasicMaterial({ color: 0xc89a6a, transparent: true, opacity: 0.22 }));
+astPaths.frustumCulled = false; scene.add(astPaths);
+function updateAstPaths() {
+  const arr = astPathGeo.attributes.position.array;
+  AST.forEach((a, i) => {
+    const k = i * 6, T = a.active ? 20 : 0;
+    arr[k] = a.x; arr[k + 1] = a.y; arr[k + 2] = 0; arr[k + 3] = a.x + a.vx * T; arr[k + 4] = a.y + a.vy * T; arr[k + 5] = 0;
+  });
+  astPathGeo.attributes.position.needsUpdate = true;
+}
+function moveAsteroids(h) {
+  // 1. inércia: posição avança com velocidade constante, rotação com velocidade angular constante
+  for (const a of AST) {
+    if (!a.active) { if (Math.random() < h * 0.8) spawnRock(a); continue; }
+    a.x += a.vx * h; a.y += a.vy * h;
+    a.mesh.rotation.x += a.spin.x * h; a.mesh.rotation.y += a.spin.y * h; a.mesh.rotation.z += a.spin.z * h;
+  }
+  // 2. colisões rocha-rocha: impulso ao longo da normal, conservando o momento linear
+  for (let i = 0; i < AST.length; i++) {
+    const A = AST[i]; if (!A.active) continue;
+    for (let j = i + 1; j < AST.length; j++) {
+      const B = AST[j]; if (!B.active) continue;
+      let dx = B.x - A.x, dy = B.y - A.y; const d = Math.hypot(dx, dy), minD = (A.r + B.r) * 0.95;
+      if (d >= minD || d === 0) continue;
+      dx /= d; dy /= d;
+      const vrel = (B.vx - A.vx) * dx + (B.vy - A.vy) * dy;
+      const iA = 1 / A.m, iB = 1 / B.m;
+      if (vrel < 0) {
+        const J = -(1 + E_ROCK) * vrel / (iA + iB);
+        A.vx -= J * iA * dx; A.vy -= J * iA * dy; B.vx += J * iB * dx; B.vy += J * iB * dy;
+        // esferas sem atrito: o impulso passa pelos centros, então não há torque e o giro de cada rocha não muda
+        if (state === 'play') for (let k = 0; k < 14; k++) emit(A.x + dx * A.r, A.y + dy * A.r, (Math.random() - .5), (A.vx + B.vx) / 2 + (Math.random() - .5), (A.vy + B.vy) / 2 + (Math.random() - .5), (Math.random() - .5), 1 + Math.random(), 0.45, 0.4, 0.34);
+      }
+      const corr = (minD - d) / (iA + iB);  // separa as rochas sem mover o centro de massa
+      A.x -= corr * iA * dx; A.y -= corr * iA * dy; B.x += corr * iB * dx; B.y += corr * iB * dy;
+    }
+  }
+  // 3. rochas que atingem a estação (massa muito maior, tratada como fixa)
+  for (const a of AST) {
+    if (!a.active) continue;
+    for (const b of BOXES) {
+      const qx = Math.max(b.x0, Math.min(b.x1, a.x)), qy = Math.max(b.y0, Math.min(b.y1, a.y));
+      let nx = a.x - qx, ny = a.y - qy; const d = Math.hypot(nx, ny), rr = a.r * 0.95;
+      if (d >= rr || d === 0) continue;
+      nx /= d; ny /= d;
+      const vn = a.vx * nx + a.vy * ny;
+      if (vn < 0) { a.vx -= (1 + E_ROCK) * vn * nx; a.vy -= (1 + E_ROCK) * vn * ny; }
+      a.x += nx * (rr - d); a.y += ny * (rr - d);
+    }
+    // 4. rocha muito além da área visível e se afastando: sai do jogo
+    const ox = a.x - FIELD_C[0], oy = a.y - FIELD_C[1];
+    if (Math.hypot(ox, oy) > Math.hypot(viewHalfW, viewHalfH) + 9 + a.r && ox * a.vx + oy * a.vy > 0) { a.active = false; a.mesh.visible = false; continue; }
+    a.mesh.position.set(a.x, a.y, 0);
+  }
+}
+
+// ---------------------------------------------------------------- module
+const mod = new THREE.Group();
+const modBody = new THREE.Group(); mod.add(modBody);
+(function buildModule() {
+  const hull = cylX(0.85, 0.85, 3.6, matWhite); hull.position.x = -0.2; modBody.add(hull);
+  const mli = cylX(0.87, 0.87, 1.1, matGold, 32, true); mli.position.x = -1.3; modBody.add(mli);
+  const adapter = cylX(0.85, 0.55, 0.5, matGrey); adapter.position.x = 1.85; modBody.add(adapter);
+  const dring = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.06, 10, 32), matGrey); dring.rotation.y = Math.PI / 2; dring.position.x = 2.1; modBody.add(dring);
+  const probe = cylX(0.06, 0.06, 0.55, std(0xcfd6de, 0.3, 0.9)); probe.position.x = 2.4; modBody.add(probe);
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 8), std(0xff7a2a, 0.4, 0.3, { emissive: 0x401000 })); tip.position.x = TIP - 0.08; modBody.add(tip);
+  const skirt = cylX(0.62, 0.8, 0.35, matDark); skirt.position.x = -2.15; modBody.add(skirt);
+  for (const x of [-1.85, 0.2, 1.4]) { const b = cylX(0.88, 0.88, 0.08, matGrey); b.position.x = x; modBody.add(b); }
+  // janelas
+  for (const x of [0.6, 1.05]) { const w = new THREE.Mesh(new THREE.CircleGeometry(0.13, 16), std(0x10202e, 0.1, 0.9)); w.position.set(x, 0.1, 0.851); modBody.add(w); }
+  // painéis solares do módulo (saindo do plano = profundidade 2.5D)
+  for (const s of [1, -1]) {
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 1.0), matGrey); arm.position.set(-0.9, 0, s * 1.3); modBody.add(arm);
+    const p = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.04, 2.8), [matGrey, matGrey, matSolar, matSolar, matGrey, matGrey]);
+    p.position.set(-0.9, 0, s * 3.1); p.rotation.x = s * 0.9; modBody.add(p);
+  }
+  // blocos RCS nos bicos
+  for (const j of JETS) for (const n of NOZ[j]) {
+    const blk = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.3), matDark);
+    blk.position.set(n[0] - n[2] * 0.06, n[1] - n[3] * 0.06, 0.45); modBody.add(blk);
+  }
+})();
+// plumas visíveis em cada bico
+const plumeGeo = new THREE.ConeGeometry(0.2, 1, 14, 1, true); plumeGeo.translate(0, -0.5, 0);
+const plumes = {};
+for (const j of JETS) {
+  plumes[j] = NOZ[j].map(n => {
+    const m = new THREE.Mesh(plumeGeo, new THREE.MeshBasicMaterial({ color: 0xcfeeff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    m.position.set(n[0], n[1], 0.45); m.rotation.z = Math.atan2(n[3], n[2]) + Math.PI / 2;
+    mod.add(m); return m;
+  });
+}
+scene.add(mod);
+
+// ---------------------------------------------------------------- particles
+const PN = 2400;
+const pPos = new Float32Array(PN * 3).fill(9999), pCol = new Float32Array(PN * 3), pVel = new Float32Array(PN * 3);
+const pLife = new Float32Array(PN), pMax = new Float32Array(PN).fill(1), pBase = new Float32Array(PN * 3);
+let pIdx = 0;
+const pGeo = new THREE.BufferGeometry();
+pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+pGeo.setAttribute('color', new THREE.BufferAttribute(pCol, 3));
+const spriteTex = canvasTex(64, 64, (ctx) => { const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.35, 'rgba(255,255,255,.55)'); g.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64); });
+const pts = new THREE.Points(pGeo, new THREE.PointsMaterial({ size: 0.42, map: spriteTex, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+pts.frustumCulled = false; scene.add(pts);
+function emit(x, y, z, vx, vy, vz, life, r, g, b) {
+  const i = pIdx; pIdx = (pIdx + 1) % PN;
+  pPos[i * 3] = x; pPos[i * 3 + 1] = y; pPos[i * 3 + 2] = z;
+  pVel[i * 3] = vx; pVel[i * 3 + 1] = vy; pVel[i * 3 + 2] = vz;
+  pLife[i] = pMax[i] = life; pBase[i * 3] = r; pBase[i * 3 + 1] = g; pBase[i * 3 + 2] = b;
+}
+function updateParticles(dt) {
+  for (let i = 0; i < PN; i++) {
+    if (pLife[i] <= 0) continue;
+    pLife[i] -= dt;
+    const k = i * 3;
+    if (pLife[i] <= 0) { pPos[k] = 9999; pCol[k] = pCol[k + 1] = pCol[k + 2] = 0; continue; }
+    pPos[k] += pVel[k] * dt; pPos[k + 1] += pVel[k + 1] * dt; pPos[k + 2] += pVel[k + 2] * dt;
+    const f = pLife[i] / pMax[i], a = f * f;
+    pCol[k] = pBase[k] * a; pCol[k + 1] = pBase[k + 1] * a; pCol[k + 2] = pBase[k + 2] * a;
+  }
+  pGeo.attributes.position.needsUpdate = true; pGeo.attributes.color.needsUpdate = true;
+}
+
+// ---------------------------------------------------------------- audio (ruído de gás)
+let audio = null, muted = false;
+function initAudio() {
+  if (audio) return;
+  try {
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    const buf = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const src = ac.createBufferSource(); src.buffer = buf; src.loop = true;
+    const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1500; bp.Q.value = 0.7;
+    const gain = ac.createGain(); gain.gain.value = 0;
+    const master = ac.createGain(); master.gain.value = 1;
+    src.connect(bp).connect(gain).connect(master).connect(ac.destination); src.start();
+    audio = { ac, gain, master, buf };
+  } catch (e) { audio = null; }
+}
+function burst(freq, dur, vol) {
+  if (!audio || muted) return;
+  const { ac, buf, master } = audio, t = ac.currentTime;
+  const s = ac.createBufferSource(); s.buffer = buf;
+  const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = freq;
+  const g = ac.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(f).connect(g).connect(master); s.start(t); s.stop(t + dur);
+  const o = ac.createOscillator(); o.frequency.setValueAtTime(freq / 8, t); o.frequency.exponentialRampToValueAtTime(30, t + dur);
+  const og = ac.createGain(); og.gain.setValueAtTime(vol * 0.8, t); og.gain.exponentialRampToValueAtTime(0.0001, t + dur * 0.8);
+  o.connect(og).connect(master); o.start(t); o.stop(t + dur);
+}
+
+// ---------------------------------------------------------------- state
+const S = {};
+const input = { keys: new Set(), pad: new Set(), pointer: null };
+let state = 'intro', paused = false, endTimer = 0, dockAnim = null, toastTimer = 0;
+
+function reset() {
+  const sgn = Math.random() < 0.5 ? -1 : 1;
+  Object.assign(S, {
+    x: -28, y: (Math.random() * 2 - 1) * 4.5, th: sgn * (12 + Math.random() * 20) * Math.PI / 180,
+    vx: 0, vy: 0, w: 0, fuel: 100, t: 0, active: new Set(), contact: null,
+  });
+  if (Math.abs(S.y) < 1.5) S.y = (S.y < 0 ? -1 : 1) * (1.5 + Math.random() * 2);
+  S.crashBy = null;
+  mod.visible = true; dockAnim = null; endTimer = 0;
+  placeAsteroids(); moveAsteroids(0);
+  for (let i = 0; i < PN; i++) { pLife[i] = 0; pPos[i * 3] = 9999; }
+  syncModule();
+}
+
+function activeJets() {
+  const a = new Set();
+  for (const k of input.keys) if (KEYMAP[k]) a.add(KEYMAP[k]);
+  for (const j of input.pad) a.add(j);
+  if (input.pointer && input.pointer.jet) a.add(input.pointer.jet);
+  return a;
+}
+
+// ---------------------------------------------------------------- physics
+function bodyToWorld(bx, by) { const c = Math.cos(S.th), s = Math.sin(S.th); return [S.x + bx * c - by * s, S.y + bx * s + by * c]; }
+function worldToBody(wx, wy) { const c = Math.cos(S.th), s = Math.sin(S.th), dx = wx - S.x, dy = wy - S.y; return [dx * c + dy * s, -dx * s + dy * c]; }
+const HULL_PTS = [];
+for (let x = HULL.x0; x <= HULL.x1 + 1e-6; x += (HULL.x1 - HULL.x0) / 6) { HULL_PTS.push([x, HULL.y], [x, -HULL.y]); }
+HULL_PTS.push([HULL.x0, 0], [HULL.x1, 0]);
+
+function criteria() {
+  const [tx, ty] = bodyToWorld(TIP, 0);
+  return {
+    tx, ty,
+    vx: S.vx, vy: S.vy, th: deg(S.th), w: deg(S.w), dy: ty,
+    ok1: S.vx <= LIM.vx, ok2: Math.abs(S.vy) <= LIM.vy, ok3: Math.abs(deg(S.th)) <= LIM.th,
+    ok4: Math.abs(deg(S.w)) <= LIM.w, ok5: Math.abs(ty) <= LIM.dy,
+  };
+}
+
+function step(h) {
+  S.t += h;
+  const act = activeJets();
+  S.active = S.fuel > 0 ? act : new Set();
+  if (S.fuel > 0 && act.size) {
+    const c = Math.cos(S.th), s = Math.sin(S.th);
+    const fx = (act.has('left') ? 1 : 0) - (act.has('right') ? 1 : 0);   // jato à direita → empuxo para a esquerda
+    const fy = (act.has('bottom') ? 1 : 0) - (act.has('top') ? 1 : 0);
+    S.vx += (fx * c - fy * s) * ACC * h;
+    S.vy += (fx * s + fy * c) * ACC * h;
+    S.w += ((act.has('ccw') ? 1 : 0) - (act.has('cw') ? 1 : 0)) * ANG * h;
+    let use = 0; for (const j of act) use += (j === 'ccw' || j === 'cw') ? FUEL_R : FUEL_T;
+    S.fuel = Math.max(0, S.fuel - use * h);
+    if (S.fuel === 0) toast('Propelente esgotado — o módulo segue por inércia');
+  }
+  moveAsteroids(h);
+  const px = S.x, py = S.y, pth = S.th;
+  S.x += S.vx * h; S.y += S.vy * h; S.th += S.w * h;
+  if (S.th > Math.PI) S.th -= 2 * Math.PI; else if (S.th < -Math.PI) S.th += 2 * Math.PI;
+
+  // tentativa de acoplamento: a sonda cruza a face do porto
+  const cr = criteria();
+  if (cr.tx >= PORT_X && Math.abs(cr.ty) < 0.95) {
+    if (cr.ok1 && cr.ok2 && cr.ok3 && cr.ok4 && cr.ok5) return dock(cr);
+    return contact([cr.tx, cr.ty], [-1, 0], cr.tx - PORT_X, cr);
+  }
+  // colisão do casco com a estação: ponto de contato, normal da face e profundidade
+  for (const b of BOXES) {
+    for (const p of HULL_PTS) {
+      const [wx, wy] = bodyToWorld(p[0], p[1]);
+      if (!(wx > b.x0 && wx < b.x1 && wy > b.y0 && wy < b.y1)) continue;
+      const pen = [[wx - b.x0, -1, 0], [b.x1 - wx, 1, 0], [wy - b.y0, 0, -1], [b.y1 - wy, 0, 1]].sort((u, v) => u[0] - v[0])[0];
+      return contact([wx, wy], [pen[1], pen[2]], pen[0], null);
+    }
+    for (const [cx, cy] of [[b.x0, b.y0], [b.x0, b.y1], [b.x1, b.y0], [b.x1, b.y1]]) {
+      const [bx, by] = worldToBody(cx, cy);
+      if (!(bx > HULL.x0 && bx < HULL.x1 && Math.abs(by) < HULL.y)) continue;
+      const pen = [[HULL.x1 - bx, 1, 0], [bx - HULL.x0, -1, 0], [HULL.y - by, 0, 1], [by + HULL.y, 0, -1]].sort((u, v) => u[0] - v[0])[0];
+      const c = Math.cos(S.th), sn = Math.sin(S.th);
+      const nwx = pen[1] * c - pen[2] * sn, nwy = pen[1] * sn + pen[2] * c;   // normal da face do módulo, em coordenadas do mundo
+      return contact([cx, cy], [-nwx, -nwy], pen[0], null);
+    }
+  }
+  // colisão com asteroides: ponto do casco (ou da sonda) mais próximo do centro da rocha
+  for (const a of AST) {
+    if (!a.active) continue;
+    const rr = a.r * 0.95;
+    const [bx, by] = worldToBody(a.x, a.y);
+    const qx = Math.max(HULL.x0, Math.min(HULL.x1, bx)), qy = Math.max(-HULL.y, Math.min(HULL.y, by));
+    let P = bodyToWorld(qx, qy), d = Math.hypot(a.x - P[0], a.y - P[1]);
+    const dTip = Math.hypot(a.x - cr.tx, a.y - cr.ty);
+    if (dTip < d) { P = [cr.tx, cr.ty]; d = dTip; }
+    if (d < rr) return asteroidHit(a, rr, d, P);
+  }
+  // perdido no espaço
+  if (S.x < -58 || S.x > 46 || Math.abs(S.y) > 30) end('lost');
+}
+
+function asteroidHit(a, rr, d, P) {
+  let nx = P[0] - a.x, ny = P[1] - a.y, L = Math.hypot(nx, ny);
+  if (L < 1e-6) { nx = S.x - a.x; ny = S.y - a.y; L = Math.hypot(nx, ny) || 1; }
+  nx /= L; ny /= L;
+  const n = [nx, ny];
+  if (-normalSpeed(P, n, a) > CRASH_V * 0.75) { S.crashBy = 'asteroid'; return crash(); }
+  rigidImpulse(P, n, a, 0.35);
+  const iM = 1 / M_MOD, iA = 1 / a.m, corr = (rr - d + 0.03) / (iM + iA);   // separação sem mover o centro de massa
+  S.x += corr * iM * nx; S.y += corr * iM * ny; a.x -= corr * iA * nx; a.y -= corr * iA * ny;
+  burst(700, 0.4, 0.4);
+  for (let i = 0; i < 40; i++) emit(P[0], P[1], (Math.random() - .5), a.vx + (Math.random() - .5) * 1.5, a.vy + (Math.random() - .5) * 1.5, (Math.random() - .5), 0.8 + Math.random(), 0.55, 0.48, 0.4);
+  toast(`Choque com asteroide de ${Math.round(a.m / 1000)} t: impulso trocado entre os dois`);
+}
+
+// Impulso de corpo rígido no ponto de contato P, normal n (sentido em que o módulo é empurrado).
+// other = rocha (massa finita) ou null (estação, ~420 t, tratada como fixa).
+// Conserva momento linear e angular; e = coeficiente de restituição.
+function rigidImpulse(P, n, other, e) {
+  const rx = P[0] - S.x, ry = P[1] - S.y;
+  const vpx = S.vx - S.w * ry, vpy = S.vy + S.w * rx;           // v + ω × r
+  const ovx = other ? other.vx : 0, ovy = other ? other.vy : 0;
+  const vn = (vpx - ovx) * n[0] + (vpy - ovy) * n[1];
+  if (vn >= 0) return vn;
+  const rn = rx * n[1] - ry * n[0];                              // r × n
+  const invO = other ? 1 / other.m : 0;
+  const J = -(1 + e) * vn / (1 / M_MOD + invO + rn * rn / I_MOD);
+  S.vx += J * n[0] / M_MOD; S.vy += J * n[1] / M_MOD; S.w += rn * J / I_MOD;
+  if (other) { other.vx -= J * n[0] * invO; other.vy -= J * n[1] * invO; }
+  return vn;
+}
+function normalSpeed(P, n, other) {
+  const rx = P[0] - S.x, ry = P[1] - S.y;
+  return (S.vx - S.w * ry - (other ? other.vx : 0)) * n[0] + (S.vy + S.w * rx - (other ? other.vy : 0)) * n[1];
+}
+
+function contact(P, n, depth, cr) {
+  if (-normalSpeed(P, n, null) > CRASH_V) { S.crashBy = 'station'; return crash(); }
+  rigidImpulse(P, n, null, 0.3);
+  S.x += n[0] * (depth + 0.01); S.y += n[1] * (depth + 0.01);
+  burst(900, 0.35, 0.35);
+  if (cr) {
+    const why = [];
+    if (!cr.ok1) why.push(`aproximação ${fmt(cr.vx, 2)} m/s`);
+    if (!cr.ok2) why.push(`lateral ${fmt(Math.abs(cr.vy), 2)} m/s`);
+    if (!cr.ok3) why.push(`atitude ${fmt(Math.abs(cr.th), 1)}°`);
+    if (!cr.ok4) why.push(`rotação ${fmt(Math.abs(cr.w), 1)} °/s`);
+    if (!cr.ok5) why.push(`desalinhado ${fmt(Math.abs(cr.dy), 2)} m`);
+    toast('Captura recusada: ' + why.join(' · '));
+  } else toast('Contato com o casco da estação — afaste-se');
+}
+
+function dock(cr) {
+  state = 'docking';
+  S.result = { v: cr.vx, th: Math.abs(cr.th), dy: Math.abs(cr.dy), w: Math.abs(cr.w) };
+  dockAnim = { t: 0, x0: S.x, y0: S.y, th0: S.th, x1: PORT_X - TIP + 0.12, y1: 0 };
+  S.vx = S.vy = S.w = 0; S.active = new Set();
+  burst(500, 0.6, 0.6);
+  toast('Captura suave confirmada — travas de acoplamento fechando');
+}
+
+function crash() {
+  state = 'crash'; S.active = new Set();
+  for (let i = 0; i < 420; i++) {
+    const a = Math.random() * Math.PI * 2, sp = Math.random() * 6, up = (Math.random() - 0.5) * 4;
+    const hot = Math.random();
+    emit(S.x + (Math.random() - .5) * 2, S.y + (Math.random() - .5), (Math.random() - .5), S.vx * 0.3 + Math.cos(a) * sp, S.vy * 0.3 + Math.sin(a) * sp, up, 1 + Math.random() * 2.2,
+      1, hot > .5 ? 0.6 : 0.85, hot > .5 ? 0.2 : 0.7);
+  }
+  mod.visible = false;
+  burst(260, 1.6, 1);
+  endTimer = 1.6; S.endKind = 'crash';
+}
+
+function end(kind) {
+  state = 'over'; S.active = new Set();
+  showEnd(kind);
+}
+
+// ---------------------------------------------------------------- render sync
+function syncModule() {
+  mod.position.set(S.x, S.y, 0); mod.rotation.z = S.th;
+}
+const tmpV = new THREE.Vector3();
+function fitCamera() {
+  // câmera fixa no referencial da estação: tudo o que se move na tela se move de fato
+  const w = canvas.clientWidth || window.innerWidth, h = canvas.clientHeight || window.innerHeight;
+  const aspect = w / h, tanH = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  const dist = Math.max(33 / (tanH * aspect), 17 / tanH);
+  viewHalfH = dist * tanH * 1.15; viewHalfW = viewHalfH * aspect;
+  camera.position.set(-3 - dist * 0.08, dist * 0.2, dist);
+  camera.lookAt(-3, 0, 0);
+}
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); fitCamera(0);
+}
+window.addEventListener('resize', resize);
+
+function updateVisuals(dt, now) {
+  syncModule();
+  // plumas e partículas
+  for (const j of JETS) {
+    const on = S.active.has(j) && mod.visible;
+    for (let i = 0; i < plumes[j].length; i++) {
+      const m = plumes[j][i];
+      m.material.opacity += ((on ? 0.55 + Math.random() * 0.25 : 0) - m.material.opacity) * Math.min(1, dt * 30);
+      const s = on ? 0.9 + Math.random() * 0.35 : 0.5; m.scale.set(1, s, 1);
+      if (on) {
+        const n = NOZ[j][i], c = Math.cos(S.th), sn = Math.sin(S.th);
+        const [wx, wy] = bodyToWorld(n[0], n[1]);
+        const dx = n[2] * c - n[3] * sn, dy = n[2] * sn + n[3] * c;
+        const count = Math.random() < dt * 140 % 1 ? Math.ceil(dt * 140) : Math.floor(dt * 140);
+        for (let q = 0; q < count; q++) {
+          const sp = 5 + Math.random() * 3, spread = 0.9;
+          emit(wx, wy, 0.45 + (Math.random() - .5) * .2,
+            S.vx + dx * sp + (Math.random() - .5) * spread, S.vy + dy * sp + (Math.random() - .5) * spread, (Math.random() - .5) * spread,
+            0.5 + Math.random() * 0.5, 0.75, 0.88, 1);
+        }
+      }
+    }
+  }
+  updateParticles(dt);
+  // previsão de trajetória
+  const arr = predGeo.attributes.position.array, T = 25;
+  for (let i = 0; i < PRED_N; i++) { const t = i / (PRED_N - 1) * T; arr[i * 3] = S.x + S.vx * t; arr[i * 3 + 1] = S.y + S.vy * t; arr[i * 3 + 2] = 0; }
+  predGeo.attributes.position.needsUpdate = true; pred.computeLineDistances();
+  pred.visible = mod.visible && state !== 'docked' && state !== 'docking' && Math.hypot(S.vx, S.vy) > 0.005;
+  // farol
+  const cr = criteria(), allOk = cr.ok1 && cr.ok2 && cr.ok3 && cr.ok4 && cr.ok5;
+  const col = state === 'docked' || state === 'docking' ? 0x5df2a0 : allOk ? 0x5df2a0 : 0xffb547;
+  beaconMat.color.setHex(col); beaconLight.color.setHex(col);
+  const blink = (Math.sin(now * 0.006) > 0) ? 1 : 0.15;
+  beaconMat.color.multiplyScalar(blink); beaconLight.intensity = 0.7 * blink;
+  updateAstPaths();
+  // ambiente
+  earthMesh.rotation.y += dt * 0.004; clouds.rotation.y += dt * 0.0055; stars.rotation.y += dt * 0.0006;
+}
+
+// ---------------------------------------------------------------- HUD
+const $ = id => document.getElementById(id);
+const el = { tVx: $('tVx'), tVy: $('tVy'), tW: $('tW'), tTh: $('tTh'), tD: $('tD'), tDy: $('tDy'), tF: $('tF'), fBar: $('fBar'), clock: $('clock'), ready: $('ready'), toast: $('toast') };
+const keyEls = [...document.querySelectorAll('.key')];
+function toast(msg) {
+  if (el.toast.textContent === msg && el.toast.classList.contains('show')) { toastTimer = 3.2; return; }
+  el.toast.textContent = msg; el.toast.classList.add('show'); toastTimer = 3.2;
+}
+function setCrit(i, ok, val) { $('c' + i).classList.toggle('ok', ok); $('v' + i).textContent = val; }
+function updateHUD(dt) {
+  const cr = criteria();
+  el.tVx.textContent = fmt(S.vx, 2, true) + ' m/s';
+  el.tVy.textContent = fmt(S.vy, 2, true) + ' m/s';
+  el.tW.textContent = fmt(deg(S.w), 1, true) + ' °/s';
+  el.tTh.textContent = fmt(deg(S.th), 1, true) + '°';
+  el.tD.textContent = fmt(Math.max(0, Math.hypot(PORT_X - cr.tx, cr.ty)), 1) + ' m';
+  el.tDy.textContent = fmt(cr.ty, 2, true) + ' m';
+  let near = Infinity; for (const a of AST) if (a.active) near = Math.min(near, Math.hypot(a.x - S.x, a.y - S.y) - a.r * 0.95 - 1);
+  const tA = $('tA'); tA.textContent = !asteroidsOn ? 'desligado' : near === Infinity ? '–' : fmt(Math.max(0, near), 1) + ' m'; tA.style.color = near < 2.5 ? 'var(--bad)' : near < 5 ? 'var(--amber)' : '';
+  el.tF.textContent = Math.ceil(S.fuel) + '%';
+  el.fBar.style.width = S.fuel + '%';
+  el.fBar.style.background = S.fuel < 20 ? 'var(--bad)' : S.fuel < 45 ? 'var(--amber)' : 'var(--cyan)';
+  setCrit(1, cr.ok1, fmt(cr.vx, 2)); setCrit(2, cr.ok2, fmt(Math.abs(cr.vy), 2));
+  setCrit(3, cr.ok3, fmt(Math.abs(cr.th), 1) + '°'); setCrit(4, cr.ok4, fmt(Math.abs(cr.w), 1));
+  setCrit(5, cr.ok5, fmt(Math.abs(cr.dy), 2));
+  const all = cr.ok1 && cr.ok2 && cr.ok3 && cr.ok4 && cr.ok5;
+  el.ready.classList.toggle('ok', all); el.ready.textContent = all ? 'PRONTO PARA CONTATO' : 'NÃO PRONTO PARA CONTATO';
+  const m = Math.floor(S.t / 60), s = Math.floor(S.t % 60);
+  el.clock.textContent = `T+${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  const shown = activeJets();
+  for (const k of keyEls) k.classList.toggle('on', shown.has(k.dataset.jet) && S.fuel > 0 && state === 'play');
+  if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) el.toast.classList.remove('show'); }
+}
+
+// ---------------------------------------------------------------- overlay
+const overlay = $('overlay'), card = $('card');
+function showEnd(kind) {
+  const r = S.result || {};
+  const fuelLeft = Math.round(S.fuel);
+  const time = el.clock.textContent.replace('T+', '');
+  let title, sub, text, stats = '';
+  if (kind === 'docked') {
+    const score = Math.round(Math.max(0, 1 - r.v / LIM.vx) * 25 + Math.max(0, 1 - r.th / LIM.th) * 20 + Math.max(0, 1 - r.dy / LIM.dy) * 20 + fuelLeft * 0.25 + Math.max(0, 10 - S.t / 18));
+    const grade = score >= 70 ? 'Excelente' : score >= 50 ? 'Muito bom' : score >= 35 ? 'Bom' : 'Dentro do limite';
+    title = 'Acoplado <span>com sucesso</span>'; sub = `Captura suave · avaliação: ${grade} (${score} pts)`;
+    text = 'As travas fecharam e a pressão entre o módulo e a estação está sendo equalizada. A tripulação já pode abrir a escotilha.';
+    stats = `<div><span>Tempo</span><b>${time}</b></div><div><span>Propelente restante</span><b>${fuelLeft}%</b></div>
+      <div><span>Vel. no contato</span><b>${fmt(r.v, 3)} m/s</b></div><div><span>Erro de atitude</span><b>${fmt(r.th, 2)}°</b></div>
+      <div><span>Desalinhamento</span><b>${fmt(r.dy * 100, 1)} cm</b></div><div><span>Rotação residual</span><b>${fmt(r.w, 2)} °/s</b></div>`;
+  } else if (kind === 'crash') {
+    title = 'Colisão <span>destrutiva</span>'; sub = 'Perda do veículo';
+    text = S.crashBy === 'asteroid' ? `Impacto com um asteroide acima de ${fmt(CRASH_V * 0.75, 1)} m/s de velocidade relativa. As rochas também derivam sem atrito e só mudam de rumo quando colidem: observe a trajetória de cada uma e passe pelas brechas.` : `O módulo atingiu a estação acima de ${fmt(CRASH_V, 1)} m/s. No espaço não há freio: cada impulso precisa de outro igual e oposto para ser anulado. Comece a frear bem antes do porto.`;
+  } else {
+    title = 'Fora do <span>alcance</span>'; sub = 'Módulo à deriva';
+    text = 'Sem atrito, o módulo continuou na mesma velocidade até sair da zona de aproximação. Use a linha tracejada laranja (trajetória prevista) para planejar os impulsos.';
+  }
+  card.innerHTML = `<p class="sub">${sub}</p><h1>${title}</h1><p>${text}</p>${stats ? `<div class="stats">${stats}</div>` : ''}<div class="mode" role="group" aria-label="Asteroides"><button class="seg" id="segOn" data-ast="1">Com asteroides</button><button class="seg" id="segOff" data-ast="0">Sem asteroides</button></div><button class="cta" id="bAgain">Nova tentativa</button><button class="ghost" data-phy>Entenda a física</button>`;
+  overlay.hidden = false;
+  syncMode();
+  $('bAgain').addEventListener('click', start);
+  $('bAgain').focus();
+}
+function start() {
+  initAudio(); if (audio && audio.ac.state === 'suspended') audio.ac.resume();
+  reset(); state = 'play'; paused = false; overlay.hidden = true;
+  el.toast.classList.remove('show');
+  $('bPause').innerHTML = '<kbd>P</kbd>Pausa';
+  canvas.focus?.();
+}
+$('bStart').addEventListener('click', start);
+function syncMode() {
+  $('bAst').setAttribute('aria-pressed', String(asteroidsOn)); $('astState').textContent = asteroidsOn ? 'ligados' : 'desligados';
+  for (const b of overlay.querySelectorAll('.seg')) b.setAttribute('aria-pressed', String((b.dataset.ast === '1') === asteroidsOn));
+}
+function setAsteroids(on) {
+  if (on === asteroidsOn) return;
+  asteroidsOn = on;
+  try { localStorage.setItem('iss-asteroides', on ? '1' : '0'); } catch (err) {}
+  syncMode();
+  if (state === 'play' || state === 'crash' || state === 'docking') {
+    // durante a partida: desligar remove as rochas; ligar faz novas rochas chegarem de fora do campo de visão
+    if (!on) for (const a of AST) { a.active = false; a.mesh.visible = false; }
+    toast(on ? 'Asteroides ligados: novas rochas entrando no setor' : 'Asteroides desligados');
+  } else placeAsteroids();
+}
+overlay.addEventListener('click', e => {
+  const b = e.target.closest('.seg'); if (!b) return;
+  setAsteroids(b.dataset.ast === '1');
+});
+$('bAst').addEventListener('click', () => setAsteroids(!asteroidsOn));
+syncMode();
+$('bReset').addEventListener('click', () => { if (state !== 'intro') start(); });
+$('bPause').addEventListener('click', togglePause);
+$('bSound').addEventListener('click', toggleSound);
+function togglePause() {
+  if (state !== 'play') return; paused = !paused;
+  $('bPause').innerHTML = paused ? '<kbd>P</kbd>Continuar' : '<kbd>P</kbd>Pausa';
+  if (paused) toast('Pausado'); else el.toast.classList.remove('show');
+}
+function toggleSound() {
+  muted = !muted; $('bSound').innerHTML = muted ? '<kbd>M</kbd>Sem som' : '<kbd>M</kbd>Som';
+  if (audio) audio.master.gain.value = muted ? 0 : 1;
+}
+
+
+// ---------------------------------------------------------------- seção de física
+const phy = $('physics');
+let phyAutoPaused = false, phyReturnFocus = null;
+function openPhysics() {
+  if (!phy.hidden) return;
+  phyReturnFocus = document.activeElement;
+  input.keys.clear(); input.pad.clear(); input.pointer = null;
+  if (state === 'play' && !paused) { togglePause(); phyAutoPaused = true; el.toast.classList.remove('show'); }
+  phy.hidden = false;
+  $('phyClose').focus();
+}
+function closePhysics() {
+  if (phy.hidden) return;
+  phy.hidden = true;
+  if (phyAutoPaused && paused && state === 'play') togglePause();
+  phyAutoPaused = false;
+  last = performance.now();
+  if (phyReturnFocus && phyReturnFocus.focus) phyReturnFocus.focus();
+}
+$('bPhy').addEventListener('click', openPhysics);
+$('bPhy2').addEventListener('click', openPhysics);
+overlay.addEventListener('click', e => { if (e.target.closest('[data-phy]')) openPhysics(); });
+$('phyClose').addEventListener('click', closePhysics);
+$('phyBack').addEventListener('click', closePhysics);
+const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+for (const c of phy.querySelectorAll('.chip')) c.addEventListener('click', () => {
+  const t = document.getElementById(c.dataset.target); if (t) t.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+});
+
+// ---------------------------------------------------------------- input
+window.addEventListener('keydown', e => {
+  if (!phy.hidden) { if (e.code === 'Escape' || e.code === 'KeyF') { e.preventDefault(); closePhysics(); } return; }
+  if (e.code === 'KeyF') { openPhysics(); return; }
+  if (KEYMAP[e.code]) { input.keys.add(e.code); e.preventDefault(); }
+  else if (e.code === 'KeyR' && state !== 'intro') start();
+  else if (e.code === 'KeyP') togglePause();
+  else if (e.code === 'KeyM') toggleSound();
+  else if (e.code === 'KeyT') setAsteroids(!asteroidsOn);
+  else if ((e.code === 'Enter' || e.code === 'Space') && !overlay.hidden) { e.preventDefault(); start(); }
+});
+window.addEventListener('keyup', e => input.keys.delete(e.code));
+window.addEventListener('blur', () => { input.keys.clear(); input.pad.clear(); input.pointer = null; });
+
+function jetFromScreen(px, py) {
+  const r = canvas.getBoundingClientRect();
+  tmpV.set(S.x, S.y, 0).project(camera);
+  const sx = (tmpV.x + 1) / 2 * r.width + r.left, sy = (1 - tmpV.y) / 2 * r.height + r.top;
+  const dx = px - sx, dy = -(py - sy);
+  if (Math.hypot(dx, dy) < 18) return null;
+  const c = Math.cos(S.th), s = Math.sin(S.th);
+  const bx = dx * c + dy * s, by = -dx * s + dy * c; // direção do clique no referencial do módulo
+  return Math.abs(bx) > Math.abs(by) ? (bx > 0 ? 'right' : 'left') : (by > 0 ? 'top' : 'bottom');
+}
+canvas.addEventListener('pointerdown', e => {
+  if (state !== 'play') return;
+  initAudio();
+  canvas.setPointerCapture(e.pointerId);
+  input.pointer = { id: e.pointerId, x: e.clientX, y: e.clientY, jet: jetFromScreen(e.clientX, e.clientY) };
+});
+canvas.addEventListener('pointermove', e => { if (input.pointer && input.pointer.id === e.pointerId) { input.pointer.x = e.clientX; input.pointer.y = e.clientY; } });
+const endPointer = e => { if (input.pointer && input.pointer.id === e.pointerId) input.pointer = null; };
+canvas.addEventListener('pointerup', endPointer); canvas.addEventListener('pointercancel', endPointer);
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+for (const k of keyEls) {
+  const j = k.dataset.jet;
+  k.addEventListener('pointerdown', e => { e.preventDefault(); initAudio(); k.setPointerCapture(e.pointerId); input.pad.add(j); });
+  const up = () => input.pad.delete(j);
+  k.addEventListener('pointerup', up); k.addEventListener('pointercancel', up); k.addEventListener('lostpointercapture', up);
+  k.addEventListener('keydown', e => { if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); input.pad.add(j); } });
+  k.addEventListener('keyup', e => { if (e.code === 'Space' || e.code === 'Enter') input.pad.delete(j); });
+}
+
+// ---------------------------------------------------------------- loop
+const H = 1 / 120;
+let last = performance.now(), acc = 0, introT = 0;
+function frame(now) {
+  if (!phy.hidden) { last = now; requestAnimationFrame(frame); return; }   // cena congelada enquanto o manual está aberto
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (state === 'play' && !paused) {
+    if (input.pointer) input.pointer.jet = jetFromScreen(input.pointer.x, input.pointer.y);
+    acc += dt;
+    while (acc >= H && state === 'play') { step(H); acc -= H; }
+  } else acc = 0;
+  if (state !== 'play' && !paused) moveAsteroids(dt);
+  if (state === 'intro') { introT += dt; S.th = Math.sin(introT * 0.4) * 0.25; }
+  if (state === 'docking' && dockAnim) {
+    dockAnim.t += dt / 1.4; const k = Math.min(1, dockAnim.t), e = k * k * (3 - 2 * k);
+    S.x = dockAnim.x0 + (dockAnim.x1 - dockAnim.x0) * e; S.y = dockAnim.y0 + (dockAnim.y1 - dockAnim.y0) * e; S.th = dockAnim.th0 * (1 - e);
+    if (k >= 1) { state = 'docked'; burst(380, 0.5, 0.5); setTimeout(() => { if (state === 'docked') showEnd('docked'); }, 700); }
+  }
+  if (state === 'crash') { endTimer -= dt; if (endTimer <= 0) end('crash'); }
+  if (audio) {
+    const n = (state === 'play' && !paused) ? S.active.size : 0;
+    audio.gain.gain.setTargetAtTime(muted ? 0 : Math.min(0.16, n * 0.06), audio.ac.currentTime, 0.03);
+  }
+  const vdt = paused ? 0 : dt;
+  updateVisuals(vdt, now);
+  updateHUD(dt);
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+reset();
+resize();
+requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>
