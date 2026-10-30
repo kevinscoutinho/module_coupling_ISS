@@ -72,7 +72,7 @@ body { background: var(--space); color: var(--ink); font-family: var(--mono); ov
 .padnote { text-shadow: 0 1px 3px #000, 0 0 8px #000; margin-top: 6px; font-size: 10px; color: var(--dim); max-width: 204px; line-height: 1.4; }
 
 #tools { bottom: calc(16px + env(safe-area-inset-bottom, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); display: flex; gap: 6px; pointer-events: auto; }
-.btn { appearance: none; border: 1px solid var(--line); background: rgba(10, 18, 32, .82); color: var(--ink); border-radius: 4px; padding: 8px 10px; font-family: var(--mono); font-size: 11px; cursor: pointer; }
+.btn { appearance: none; border: 1px solid var(--line); background: rgba(10, 18, 32, .82); color: var(--ink); border-radius: 4px; padding: 8px 10px; font-family: var(--mono); font-size: 11px; cursor: pointer; } a.btn { display: inline-block; text-decoration: none; }
 .btn[aria-pressed="true"] { border-color: rgba(255,181,71,.5); }
 .btn[aria-pressed="false"] #astState { color: var(--dim); }
 #astState { color: var(--amber); }
@@ -241,6 +241,7 @@ figcaption b { color: var(--ink); }
 
   <div id="tools" class="hud">
     <button class="btn" id="bPhy"><kbd>F</kbd>Física do jogo</button>
+    <a class="btn" id="bAnat" href="anatomia-acoplamento-iss.html" target="_blank" rel="noopener" title="Abre o mapa de blocos do código em outra aba">Anatomia do jogo ↗</a>
     <button class="btn" id="bAst" aria-pressed="true"><kbd>T</kbd>Asteroides: <span id="astState">ligados</span></button>
     <button class="btn" id="bPause"><kbd>P</kbd>Pausa</button>
     <button class="btn" id="bSound"><kbd>M</kbd>Som</button>
@@ -1208,6 +1209,7 @@ syncMode();
 $('bReset').addEventListener('click', () => { if (state !== 'intro') start(); });
 $('bPause').addEventListener('click', togglePause);
 $('bSound').addEventListener('click', toggleSound);
+$('bAnat').addEventListener('click', () => { if (state === 'play' && !paused) togglePause(); });   // abre a anatomia em outra aba e pausa a partida
 function togglePause() {
   if (state !== 'play') return; paused = !paused;
   $('bPause').innerHTML = paused ? '<kbd>P</kbd>Continuar' : '<kbd>P</kbd>Pausa';

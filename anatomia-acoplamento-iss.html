@@ -1,0 +1,1390 @@
+<meta charset="utf-8">
+<title>Anatomia do Acoplamento ISS</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+/* Layout: mapa de nós em tela livre (pan, zoom, ramos que se abrem). Painel de leitura recolhível à direita; gaveta no celular. */
+:root {
+  --bg: #eef1f5;
+  --grid: #e0e5ec;
+  --sheet: #fbfcfd;
+  --ink: #16202d;
+  --dim: #586477;
+  --rule: #c5cdd9;
+  --html: #bf4c16;
+  --css: #2456c4;
+  --js: #866700;
+  --ext: #6553a8;
+  --sig: #c81f5a;
+  --soft: rgba(22, 32, 45, .05);
+  --display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b1119; --grid: #151e2b; --sheet: #111925; --ink: #e1e7ef; --dim: #8b97a8; --rule: #2a3646;
+    --html: #ff8a4f; --css: #74a3ff; --js: #e6c14d; --ext: #ab9cf5; --sig: #ff6f9e; --soft: rgba(225, 231, 239, .05);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b1119; --grid: #151e2b; --sheet: #111925; --ink: #e1e7ef; --dim: #8b97a8; --rule: #2a3646;
+  --html: #ff8a4f; --css: #74a3ff; --js: #e6c14d; --ext: #ab9cf5; --sig: #ff6f9e; --soft: rgba(225, 231, 239, .05);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.55; }
+.wrap { max-width: 1600px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 22px 56px; }
+code, kbd { font-family: var(--mono); font-size: .88em; background: var(--soft); border: 1px solid var(--rule); border-radius: 3px; padding: 0 .3em; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--sig); outline-offset: 2px; }
+.l-html { --c: var(--html); } .l-css { --c: var(--css); } .l-js { --c: var(--js); } .l-ext { --c: var(--ext); } .l-root { --c: var(--ink); }
+
+/* ---------- cabeçalho */
+.head { margin-bottom: 14px; display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 10px 32px; }
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); margin: 0 0 4px; }
+h1 { font-family: var(--display); font-weight: 700; font-size: clamp(26px, 3.4vw, 40px); line-height: 1.05; margin: 0; text-wrap: balance; }
+h1 em { font-style: normal; color: var(--sig); }
+.lead { max-width: 62ch; margin: 0; font-size: 14.5px; color: var(--dim); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-family: var(--mono); font-size: 12px; color: var(--dim); margin-top: 8px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 12px; height: 12px; border: 1.5px solid var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); }
+
+/* ---------- mapa */
+.mapbox { position: relative; height: max(540px, calc(100vh - 150px)); border: 1.5px solid var(--ink); background: var(--bg); overflow: hidden; }
+#map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+#map.panning { cursor: grabbing; }
+.gridline { stroke: var(--grid); stroke-width: 1; fill: none; }
+.edge { fill: none; stroke: var(--dim); stroke-opacity: .55; stroke-width: 1.4; }
+.link { fill: none; stroke: var(--sig); stroke-width: 1.7; stroke-dasharray: 6 4; }
+.mk-sig { fill: var(--sig); }
+#dot { fill: var(--sig); stroke: var(--sheet); stroke-width: 2; }
+
+.node { cursor: pointer; outline: none; }
+.node .box { fill: var(--sheet); stroke: var(--c); stroke-width: 1.4; transition: stroke-width .15s, fill .15s; }
+.node.big .box { fill: color-mix(in srgb, var(--c) 10%, var(--sheet)); stroke-width: 2; }
+.node:hover .box { stroke-width: 2.6; }
+.node:focus-visible .box { stroke: var(--sig); stroke-width: 3; }
+.node .nid { font-family: var(--mono); font-size: 11px; font-weight: 600; fill: var(--c); }
+.node .nnm { font-family: var(--sans); font-size: 14px; font-weight: 600; fill: var(--ink); }
+.node.big .nnm { font-family: var(--display); font-size: 15.5px; font-weight: 700; }
+.node .ntl { font-family: var(--sans); font-size: 12px; fill: var(--dim); }
+.node .nbadge { font-family: var(--mono); font-size: 12px; font-weight: 600; fill: var(--c); }
+.node.sel .box { stroke-width: 3; fill: color-mix(in srgb, var(--c) 20%, var(--sheet)); }
+.node.linked .box { stroke-dasharray: 6 3; stroke-width: 2.2; }
+.node .ring { fill: none; stroke: var(--sig); stroke-width: 2.5; opacity: 0; }
+.node.lit .ring { animation: ring 1.5s ease-in-out infinite; }
+.node.lit .box { stroke: var(--sig); stroke-width: 2.6; }
+@keyframes ring { 0%, 100% { opacity: .95; } 50% { opacity: .15; } }
+#map.has-sel .node:not(.sel):not(.linked):not(.anc):not(.kid) { opacity: .45; }
+#map.tracing .node:not(.lit):not(.sel) { opacity: .35; }
+.node { transition: opacity .2s; }
+
+.toolbar { position: absolute; top: 10px; left: 10px; z-index: 4; display: flex; flex-wrap: wrap; gap: 6px; max-width: calc(100% - 20px); }
+.tb { appearance: none; border: 1.5px solid var(--ink); background: var(--sheet); border-radius: 3px; padding: 6px 11px; cursor: pointer; font-family: var(--display); font-weight: 600; font-size: 13.5px; letter-spacing: .03em; line-height: 1.2; }
+.tb:hover { background: color-mix(in srgb, var(--ink) 7%, var(--sheet)); }
+.tb.primary { background: var(--ink); color: var(--sheet); }
+.tb.sq { width: 34px; padding: 6px 0; }
+.hint { position: absolute; left: 10px; bottom: 8px; z-index: 3; font-family: var(--mono); font-size: 11.5px; color: var(--dim); background: color-mix(in srgb, var(--bg) 85%, transparent); padding: 2px 6px; pointer-events: none; }
+
+.trace { position: absolute; top: 52px; left: 10px; z-index: 5; width: min(620px, calc(100% - 20px)); border: 1.5px solid var(--sig); background: var(--sheet); padding: 10px 12px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 14px; box-shadow: 0 6px 24px rgba(0,0,0,.1); }
+.mapbox.panel-open .trace { width: min(620px, calc(100% - 440px)); }
+.trace-n { font-family: var(--mono); font-size: 12px; color: var(--sig); white-space: nowrap; }
+.trace-n b { display: block; font-family: var(--display); font-size: 22px; line-height: 1; }
+.trace h3 { margin: 0 0 2px; font-family: var(--display); font-size: 16px; }
+.trace p { margin: 0; font-size: 14px; }
+.trace-ctl { grid-column: 1 / -1; display: flex; gap: 6px; }
+.trace-ctl .tb { padding: 4px 10px; font-size: 13px; }
+.trace-prog { grid-column: 1 / -1; height: 3px; background: var(--rule); }
+.trace-prog i { display: block; height: 100%; background: var(--sig); transition: width .25s; }
+
+/* ---------- painel */
+.panel { position: absolute; top: 0; right: 0; bottom: 0; width: 420px; max-width: 100%; z-index: 6; background: var(--sheet); border-left: 1.5px solid var(--ink); overflow-y: auto; padding: 16px 20px 24px; transition: transform .25s ease; scrollbar-width: thin; }
+.mapbox:not(.panel-open) .panel { transform: translateX(102%); visibility: hidden; }
+.tab { position: absolute; top: 10px; right: 10px; z-index: 5; }
+.panel h2 { font-family: var(--display); font-weight: 700; font-size: 25px; line-height: 1.15; margin: 4px 0 6px; text-wrap: balance; }
+.panel h3 { font-family: var(--mono); font-weight: 600; font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--c, var(--dim)); margin: 20px 0 6px; padding-bottom: 4px; border-bottom: 1px solid var(--rule); }
+.panel p { margin: 0 0 10px; }
+.panel ol, .panel ul { margin: 0 0 10px; padding-left: 20px; }
+.panel li { margin: 0 0 6px; }
+.panel li::marker { color: var(--c, var(--dim)); font-family: var(--mono); font-size: .9em; }
+.panel .what { font-size: 16px; }
+.p-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.pill { font-family: var(--mono); font-size: 11.5px; font-weight: 600; letter-spacing: .06em; color: var(--c); border: 1px solid var(--c); padding: 2px 8px; border-radius: 2px; }
+.x { appearance: none; border: 1px solid var(--rule); background: transparent; width: 30px; height: 30px; border-radius: 3px; cursor: pointer; font-size: 18px; line-height: 1; flex: none; }
+.meta { font-family: var(--mono); font-size: 12px; color: var(--dim); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.meta code { font-size: 11.5px; }
+.rel { list-style: none; padding: 0 !important; display: flex; flex-direction: column; gap: 6px; }
+.rel li { margin: 0; display: grid; grid-template-columns: minmax(0, auto) minmax(0, 1fr); gap: 2px 10px; align-items: baseline; }
+.go { appearance: none; border: 1px solid var(--c); background: color-mix(in srgb, var(--c) 8%, transparent); color: var(--ink); border-radius: 2px; padding: 2px 8px; cursor: pointer; font-size: 13px; text-align: left; white-space: nowrap; }
+.go b { font-family: var(--mono); font-size: 11px; color: var(--c); margin-right: 5px; }
+.go:hover { background: color-mix(in srgb, var(--c) 18%, transparent); }
+.rel span { font-size: 13px; color: var(--dim); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pn { display: flex; justify-content: space-between; gap: 8px; margin-top: 22px; padding-top: 12px; border-top: 1px solid var(--rule); }
+.pn button { appearance: none; border: 0; background: transparent; cursor: pointer; font-family: var(--mono); font-size: 12px; color: var(--dim); padding: 4px 0; text-align: left; }
+.pn button:last-child { text-align: right; }
+.pn button:hover { color: var(--ink); }
+
+.bar { display: flex; height: 28px; border: 1.5px solid var(--ink); background: var(--sheet); margin: 6px 0 4px; }
+.bar > div { display: flex; align-items: center; padding: 0 6px; font-family: var(--mono); font-size: 11px; white-space: nowrap; overflow: hidden; color: var(--c); border-right: 1px solid var(--rule); background: color-mix(in srgb, var(--c) 10%, transparent); }
+.bar > div:last-child { border-right: 0; }
+.bar .hatch { background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 18%, transparent) 0 6px, transparent 6px 12px); }
+.stamp { border: 1.5px solid var(--ink); font-family: var(--mono); font-size: 12px; border-collapse: collapse; width: 100%; margin: 4px 0 10px; }
+.stamp td { border: 1px solid var(--rule); padding: 4px 8px; font-variant-numeric: tabular-nums; }
+.stamp td:first-child { color: var(--dim); text-transform: uppercase; letter-spacing: .08em; font-size: 10.5px; width: 1%; white-space: nowrap; }
+
+figure.fx { margin: 14px 0 6px; border: 1px solid var(--rule); background: var(--bg); padding: 10px; }
+figure.fx svg { display: block; width: 100%; height: auto; }
+figure.fx figcaption { font-size: 12.5px; color: var(--dim); margin-top: 8px; line-height: 1.45; }
+.fx text { font-family: var(--mono); font-size: 11px; fill: var(--dim); }
+.fx .t-ink { fill: var(--ink); } .fx .t-c { fill: var(--c); } .fx .t-sig { fill: var(--sig); }
+.fx .s-ink { stroke: var(--ink); fill: none; } .fx .s-dim { stroke: var(--dim); fill: none; } .fx .s-c { stroke: var(--c); fill: none; } .fx .s-sig { stroke: var(--sig); fill: none; }
+.fx .f-sheet { fill: var(--sheet); } .fx .f-c { fill: var(--c); } .fx .f-csoft { fill: color-mix(in srgb, var(--c) 16%, transparent); } .fx .f-ink { fill: var(--ink); } .fx .f-dim { fill: var(--dim); } .fx .f-sig { fill: var(--sig); }
+.demo canvas { display: block; width: 100%; height: auto; border: 1px solid var(--rule); }
+.demo-ctl { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-top: 8px; font-size: 13px; }
+.demo-ctl input[type=range] { width: 140px; accent-color: var(--c); }
+.demo-ctl output { font-family: var(--mono); font-weight: 600; color: var(--c); }
+
+/* ---------- vocabulário */
+.vocab { margin-top: 32px; border-top: 1.5px solid var(--ink); padding-top: 18px; }
+.vocab h2 { font-family: var(--display); font-size: 24px; margin: 0 0 4px; }
+.vocab > p { color: var(--dim); margin: 0 0 14px; }
+.vocab dl { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin: 0; }
+.vocab dl > div { border: 1px solid var(--rule); background: var(--sheet); padding: 10px 12px; }
+.vocab dt { font-family: var(--display); font-weight: 700; font-size: 15px; }
+.vocab dd { margin: 2px 0 0; font-size: 13.5px; color: var(--dim); }
+
+@media (max-width: 760px) {
+  .mapbox { height: 74vh; min-height: 460px; }
+  .panel { position: fixed; top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 72vh; border-left: 0; border-top: 1.5px solid var(--ink); box-shadow: 0 -10px 40px rgba(0,0,0,.25); padding-left: max(18px, env(safe-area-inset-left, 0px)); padding-right: max(18px, env(safe-area-inset-right, 0px)); padding-bottom: calc(22px + env(safe-area-inset-bottom, 0px)); z-index: 30; }
+  .mapbox:not(.panel-open) .panel { transform: translateY(105%); }
+  .mapbox.panel-open .trace { width: calc(100% - 20px); }
+  .tab { top: auto; bottom: 30px; }
+  .hint { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .node.lit .ring { animation: none; opacity: .9; }
+  .panel, .node, .node .box, .trace-prog i { transition: none; }
+}
+</style>
+
+<div class="wrap">
+  <header class="head">
+    <div>
+      <p class="eyebrow">Mapa de blocos · index.html</p>
+      <h1>Anatomia do <em>Acoplamento ISS</em></h1>
+      <div class="legend" aria-label="Legenda">
+        <span class="l-html"><i></i>HTML · estrutura</span>
+        <span class="l-css"><i></i>CSS · aparência</span>
+        <span class="l-js"><i></i>JavaScript · comportamento</span>
+        <span class="l-ext"><i></i>fora do arquivo</span>
+      </div>
+    </div>
+    <p class="lead">Clique num bloco para abrir os blocos de dentro e ler o que ele faz e como faz. Os fios rosa tracejados ligam o bloco escolhido aos blocos com que ele conversa.</p>
+  </header>
+
+  <div class="mapbox panel-open" id="mapbox">
+    <svg id="map" aria-label="Mapa de blocos do jogo">
+      <defs>
+        <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" class="gridline"/></pattern>
+        <marker id="mLink" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="mk-sig"/></marker>
+      </defs>
+      <g id="vp">
+        <rect x="-20000" y="-20000" width="40000" height="40000" fill="url(#grid)"/>
+        <g id="edges"></g>
+        <g id="links"></g>
+        <g id="nodes"></g>
+        <circle id="dot" r="7" style="display:none"/>
+      </g>
+    </svg>
+
+    <div class="toolbar">
+      <button class="tb primary" id="traceBtn" type="button">▶ Siga um quadro</button>
+      <button class="tb sq" id="zIn" type="button" aria-label="Aproximar">+</button>
+      <button class="tb sq" id="zOut" type="button" aria-label="Afastar">−</button>
+      <button class="tb" id="fitBtn" type="button">Enquadrar</button>
+      <button class="tb" id="foldBtn" type="button">Recolher tudo</button>
+    </div>
+
+    <div class="trace" id="trace" hidden>
+      <div class="trace-n"><b id="trN">1</b>de <span id="trT">12</span></div>
+      <div><h3 id="trH"></h3><p id="trP"></p></div>
+      <div class="trace-ctl">
+        <button class="tb" id="trPrev" type="button" aria-label="Passo anterior">◀</button>
+        <button class="tb" id="trPlay" type="button">Auto</button>
+        <button class="tb" id="trNext" type="button" aria-label="Próximo passo">▶</button>
+        <button class="tb" id="trExit" type="button">Sair</button>
+      </div>
+      <div class="trace-prog"><i id="trBar"></i></div>
+    </div>
+
+    <p class="hint">arraste o fundo para mover · roda do mouse ou pinça para zoom · arraste um bloco para reposicioná-lo</p>
+    <button class="tb tab" id="tabBtn" type="button" hidden>Detalhes ◂</button>
+    <aside class="panel" id="panel" aria-live="polite" aria-label="Detalhes do bloco"></aside>
+  </div>
+
+  <section class="vocab" aria-labelledby="vocabT">
+    <h2 id="vocabT">Vocabulário</h2>
+    <p>Termos de desenvolvimento web e de física que aparecem nas explicações.</p>
+    <dl id="vocab"></dl>
+  </section>
+</div>
+
+<script>
+(() => {
+'use strict';
+// ======================================================== dados: blocos grandes
+const BIG = {
+  html: {
+    id: 'html', lang: 'html', tag: 'HTML', name: 'Estrutura', sub: 'o que existe na página',
+    lines: 'linhas 1–10 e 199–444',
+    what: 'O esqueleto da página: diz quais elementos existem (o canvas, os painéis, os botões, o cartão inicial e o manual) e em que ordem. Sozinho, não tem comportamento nem aparência.',
+    how: `<p>O navegador lê o HTML de cima para baixo e monta uma árvore de elementos na memória, chamada <b>DOM</b>. O CSS e o JavaScript trabalham sobre essa árvore: o CSS escolhe a aparência de cada nó; o JS lê nós, altera textos e cria ou remove nós.</p>
+<p>Neste jogo o HTML é quase todo estático. Durante a partida mudam só os textos dos painéis, as classes que o CSS usa para colorir e, no fim, o conteúdo do cartão de resultado.</p>
+<p>A cena 3D não está no HTML. Ela é pintada dentro de um único elemento, o <code>&lt;canvas&gt;</code> (H2).</p>
+<p>Dos 65 kB de HTML, 60 kB são o manual de física (H7).</p>`
+  },
+  css: {
+    id: 'css', lang: 'css', tag: 'CSS', name: 'Aparência', sub: 'como cada coisa se parece',
+    lines: 'linhas 11–197 · 17 kB',
+    what: 'Cores, fontes, posições, camadas e a adaptação ao celular. Também traduz estados (ok, aceso, visível) em aparência.',
+    how: `<p>Cada regra tem um <b>seletor</b>, que diz a quem ela se aplica (<code>#toast</code>, <code>.crow.ok .dot</code>), e <b>declarações</b>, que dizem o que muda (<code>opacity: 1</code>).</p>
+<p>A regra mais importante do arquivo é uma divisão de trabalho: o JavaScript nunca escolhe cores. Ele só liga e desliga classes (<code>ok</code>, <code>on</code>, <code>show</code>) ou atributos (<code>aria-pressed</code>, <code>hidden</code>), e o CSS traduz isso em verde, aceso ou visível. Assim a lógica e o visual podem mudar sem um quebrar o outro.</p>
+<p>Uma parte grande do CSS (linhas 102–171) é só do manual de física, que está tratado como um bloco só (H7).</p>`
+  },
+  js: {
+    id: 'js', lang: 'js', tag: 'JavaScript', name: 'Comportamento', sub: 'o que faz tudo se mover',
+    lines: 'linhas 445–1354 · 52 kB',
+    what: 'Constrói a cena 3D, simula a física, lê o teclado, aplica as regras do jogo e atualiza a tela 60 ou mais vezes por segundo.',
+    how: `<p>O código tem duas fases. Ao carregar, roda uma vez de cima para baixo: cria a cena, monta a estação e o módulo, liga os eventos de teclado e mouse. Depois entra no laço principal (J8), que se repete a cada quadro de tela enquanto a página estiver aberta.</p>
+<p>Os blocos conversam por um <b>estado compartilhado</b>: o objeto <code>S</code> com a posição e a velocidade do módulo, a lista <code>AST</code> com as rochas e a variável <code>state</code> com a fase da partida. A física escreve nesse estado. O 3D, o HUD e o som só leem dele.</p>
+<p>O arquivo segue mais ou menos a ordem "montar a cena, depois a física, depois a interface". Aqui os trechos estão reagrupados em 8 grupos por função.</p>`
+  },
+  ext: {
+    id: 'ext', lang: 'ext', tag: 'Fora do index.html', name: 'Bastidores', sub: 'o que o jogo usa, mas não está no arquivo',
+    lines: 'vendor/ · tools/ · navegador',
+    what: 'A biblioteca de 3D, os serviços que o navegador oferece e os dois scripts Python que geram partes do projeto.',
+    how: `<p>O <code>index.html</code> não funciona sozinho. Ele carrega o three.js de uma pasta vizinha, usa recursos que todo navegador moderno traz prontos e tem o manual gerado por um script.</p>`
+  }
+};
+
+const GROUPS = [
+  { id: 'J1', name: 'Configuração' },
+  { id: 'J2', name: 'Mundo 3D' },
+  { id: 'J3', name: 'Física' },
+  { id: 'J4', name: 'Regras do jogo' },
+  { id: 'J5', name: 'Entrada' },
+  { id: 'J6', name: 'Interface' },
+  { id: 'J7', name: 'Som' },
+  { id: 'J8', name: 'Laço principal' },
+];
+// arrumação em duas colunas, equilibrando a altura
+const JS_COLS = [['J8', 'J3', 'J4', 'J7'], ['J5', 'J1', 'J2', 'J6']];
+
+// ======================================================== dados: sub-blocos
+const NODES = [
+// ---------------------------------------------------------------- HTML
+{ id: 'H1', lang: 'html', name: 'Cabeçalho', tl: 'idioma, codificação, viewport e fontes', lines: 'linhas 1–10', code: ['<head>'],
+  what: 'Prepara a página antes de qualquer coisa aparecer: codificação dos caracteres, comportamento no celular, título da aba e fontes.',
+  how: `<ul>
+<li><code>&lt;meta charset="utf-8"&gt;</code> diz ao navegador como transformar os bytes do arquivo em letras. É o que faz "ç", "°" e "≤" aparecerem certos.</li>
+<li><code>&lt;meta name="viewport" …&gt;</code>: sem ela, o celular fingiria ter uma tela de 980 px e encolheria tudo. O trecho <code>viewport-fit=cover</code> deixa o jogo ocupar também a área do entalhe da câmera. Depois o CSS afasta os painéis dessa área (C2).</li>
+<li>Uma regra mínima <code>[hidden]{display:none}</code> vem antes de todo o resto, para que nada marcado como oculto pisque enquanto a página carrega.</li>
+<li>O <code>&lt;link&gt;</code> do Google Fonts baixa quatro famílias: Chakra Petch (títulos), IBM Plex Mono (números do HUD), IBM Plex Sans (texto do manual) e STIX Two Text (equações). Os <code>preconnect</code> abrem a conexão com o servidor de fontes mais cedo. Sem internet, o navegador usa as fontes de reserva listadas no CSS (C1).</li>
+</ul>`,
+  links: [['C1', 'as fontes baixadas aqui viram variáveis'], ['H8', 'o outro extremo do arquivo']] },
+
+{ id: 'H2', lang: 'html', name: 'Canvas da cena', tl: 'o retângulo onde o 3D é pintado', lines: 'linha 203', code: ['<canvas id="c">'],
+  what: 'Um retângulo de pixels que ocupa a tela inteira. Estação, módulo, Terra, estrelas e asteroides são todos pintados aqui dentro.',
+  how: `<p>Para o HTML, um canvas é só uma imagem que muda. Ele não sabe o que há dentro dela. O three.js pede ao canvas um contexto <b>WebGL</b>, que é um canal direto com a placa de vídeo, e repinta o retângulo inteiro a cada quadro (J2.1).</p>
+<p>Consequência prática: a estação e o módulo não são elementos HTML e não recebem cliques individuais. Quando você clica perto do módulo, quem descobre o que foi clicado é o JavaScript. Ele projeta a posição 3D do módulo para pixels da tela e compara com o ponto do clique (J5.2).</p>
+<p>O atributo <code>aria-label</code> descreve a cena para leitores de tela, já que o conteúdo pintado é invisível para eles.</p>`,
+  links: [['J2.1', 'o renderizador pinta aqui'], ['J5.2', 'recebe os cliques e toques'], ['C2', 'fica na camada de baixo']] },
+
+{ id: 'H3', lang: 'html', name: 'Painéis do HUD', tl: 'telemetria, critérios, relógio e avisos', lines: 'linhas 205–228', code: ['#tele', '#crit', '#met', '#toast'],
+  what: 'Os quatro painéis de texto sobre a cena: telemetria (8 linhas), critérios de acoplamento (5 linhas e o "pronto"), relógio de missão e a faixa de avisos.',
+  how: `<p>O HTML entrega só a estrutura, com valores iniciais como "–" e "0,0 m". Cada número fica numa tag com <code>id</code> próprio (<code>tVx</code>, <code>tD</code>, <code>v1</code>…). A cada quadro, o JavaScript encontra essas tags e troca o texto (J6.1).</p>
+<p>Os critérios são linhas <code>.crow</code> com um pontinho <code>.dot</code>. O JS só acrescenta ou tira a classe <code>ok</code> da linha; quem decide que <code>ok</code> é verde é o CSS (C3).</p>
+<p>A faixa de aviso (<code>#toast</code>) tem <code>role="status"</code> e <code>aria-live="polite"</code>: quando o texto muda, um leitor de tela lê a mensagem sem roubar o foco.</p>
+<p>Por que HTML e não desenho no canvas? O texto do navegador fica nítido em qualquer resolução, aceita fontes da web e é acessível sem esforço extra.</p>`,
+  links: [['J6.1', 'reescreve os textos a cada quadro'], ['C3', 'dá a aparência e as cores de estado'], ['C2', 'fica por cima do canvas']] },
+
+{ id: 'H4', lang: 'html', name: 'Teclado virtual', tl: 'Q W E / A S D para mouse e toque', lines: 'linhas 230–240', code: ['#pad', 'data-jet'],
+  what: 'Seis botões na tela, no mesmo arranjo das teclas, para quem joga com mouse ou com o dedo.',
+  how: `<p>Cada botão carrega um atributo <code>data-jet</code> com o nome do jato: <code>ccw</code>, <code>top</code>, <code>cw</code>, <code>left</code>, <code>bottom</code>, <code>right</code>. Esse atributo é a ponte com o JavaScript. Um mesmo trecho de código serve para os seis botões, porque ele lê <code>botão.dataset.jet</code> para saber qual jato disparar (J5.3).</p>
+<p>São elementos <code>&lt;button&gt;</code> de verdade, então funcionam com Tab e Espaço. O <code>aria-label</code> explica cada um, por exemplo "Q: girar anti-horário".</p>`,
+  links: [['J5.3', 'lê o data-jet e dispara o jato'], ['C3', 'acende a tecla com a classe on']] },
+
+{ id: 'H5', lang: 'html', name: 'Barra de ferramentas', tl: 'física, anatomia, asteroides, pausa, som, reiniciar', lines: 'linhas 242–249', code: ['#tools', 'aria-pressed', '#bAnat'],
+  what: 'Seis controles no canto inferior direito. Cinco são botões com o atalho de teclado escrito numa tag <kbd>; o sexto é o link para esta anatomia.',
+  how: `<p>O botão de asteroides usa <code>aria-pressed="true"</code> ou <code>"false"</code>, o atributo padrão para botões de liga e desliga. Um único valor tem três leitores:</p>
+<ul>
+<li>o leitor de tela anuncia "pressionado" ou "não pressionado";</li>
+<li>o CSS deixa a palavra "desligados" acinzentada com <code>.btn[aria-pressed="false"]</code> (C3);</li>
+<li>o JavaScript o atualiza em <code>syncMode()</code> sempre que o modo muda (J6.2).</li>
+</ul>
+<p><b>Anatomia do jogo.</b> Este controle não é um <code>&lt;button&gt;</code>, é um link <code>&lt;a&gt;</code>, porque leva a outra página: o arquivo <code>anatomia-acoplamento-iss.html</code>, na mesma pasta do jogo. <code>target="_blank"</code> abre numa nova aba, para a partida não se perder, e <code>rel="noopener"</code> impede que a página aberta controle a aba do jogo. Uma linha de JavaScript pausa a partida no clique, se ela estiver rodando. O CSS reaproveita o visual de <code>.btn</code> e só tira o sublinhado padrão dos links.</p>`,
+  links: [['J6.2', 'trata os cliques'], ['C3', 'pinta conforme aria-pressed']] },
+
+{ id: 'H6', lang: 'html', name: 'Tela de início e fim', tl: 'briefing, modo e resultado', lines: 'linhas 426–441', code: ['#overlay', '#card'],
+  what: 'O cartão central com o briefing da missão, o seletor com ou sem asteroides e o botão Iniciar. No fim da partida, o mesmo cartão mostra o resultado.',
+  how: `<p>Começa visível. Ao iniciar, o JS coloca o atributo <code>hidden</code> no <code>#overlay</code> e ele some.</p>
+<p>No fim, o jogo não alterna para outro cartão já pronto: ele reescreve o conteúdo deste com <code>innerHTML</code>. O novo HTML é montado numa string com título, texto e tabela de estatísticas (J4.3). Como os botões antigos foram destruídos nessa troca, o JS liga o evento de clique do novo botão "Nova tentativa" logo em seguida.</p>
+<p>O seletor de modo usa <b>delegação de eventos</b>: um único ouvinte de clique fica no <code>#overlay</code> e verifica se o clique caiu num <code>.seg</code>. Por isso ele funciona também com os botões criados depois.</p>`,
+  links: [['J6.2', 'mostra, esconde e reescreve'], ['J4.3', 'recebe a pontuação'], ['C4', 'dá o visual do cartão']] },
+
+{ id: 'H7', lang: 'html', name: 'Manual de física', tl: 'um livro dentro do jogo · mora em HTML, CSS e JS', lines: 'HTML 252–424 · CSS 102–171 · JS 1224–1273', code: ['#physics', 'openPhysics()', 'spy()'],
+  what: 'O manual "A física por trás do jogo": 11 seções, 25 equações e 10 diagramas, com índice lateral. Ocupa quase metade do arquivo.',
+  how: `<p><b>Origem.</b> Não é escrito à mão. O script <code>tools/physics_manual.py</code> gera esse HTML, que é colado no lugar da <code>&lt;section id="physics"&gt;</code> (B3).</p>
+<p><b>HTML.</b> Uma <code>&lt;section role="dialog"&gt;</code> que fica <code>hidden</code> até ser aberta. O desenho do módulo e o da rocha são definidos uma vez num SVG invisível (dentro de <code>&lt;defs&gt;</code>, com ids <code>gm</code> e <code>gr</code>) e reaproveitados em todos os diagramas.</p>
+<p><b>CSS.</b> As equações não usam biblioteca. Uma fração é uma caixa em coluna com uma borda em cima do denominador. A seta de vetor é um pequeno SVG desenhado sobre a letra com <code>::after</code>. Por isso o manual funciona offline. Abaixo de 760 px de largura, o índice vira uma gaveta deslizante.</p>
+<p><b>JavaScript.</b> Ao abrir, o manual esvazia a lista de teclas pressionadas (senão um jato ficaria preso ligado), pausa o jogo se ele estava rodando e guarda qual botão estava com o foco. Ao fechar, despausa e devolve o foco. Enquanto ele está aberto, o laço principal congela a cena (J8). O índice destaca a seção que está na tela: a cada rolagem, vence a última seção cujo topo passou de 140 px do alto. Esse cálculo é agendado com <code>requestAnimationFrame</code> para rodar no máximo uma vez por quadro.</p>`,
+  links: [['B3', 'é gerado pelo script Python'], ['J8', 'congela a cena enquanto aberto'], ['J5.1', 'F e Esc abrem e fecham'], ['J6.2', 'usa a mesma pausa']] },
+
+{ id: 'H8', lang: 'html', name: 'Carregamento dos scripts', tl: 'three.js primeiro, depois o jogo', lines: 'linhas 445–446', code: ['<script src="vendor/three.min.js">', '(() => { … })()'],
+  what: 'Duas tags <script> no fim da página: a primeira carrega a biblioteca three.js e a segunda contém todo o código do jogo.',
+  how: `<p><b>A ordem importa.</b> O navegador executa os scripts na ordem em que aparecem. O código do jogo usa a variável <code>THREE</code>, que só passa a existir depois que <code>vendor/three.min.js</code> rodou.</p>
+<p><b>A posição também.</b> Ficar no fim do <code>&lt;body&gt;</code> garante que todos os elementos HTML já existem quando o jogo os procura com <code>getElementById</code>.</p>
+<p><b>O embrulho.</b> Todo o código do jogo está dentro de <code>(() =&gt; { 'use strict'; … })()</code>, uma função que é criada e executada na mesma hora. Tudo o que é declarado lá dentro fica privado e não colide com outros scripts. O modo estrito transforma alguns erros silenciosos em erros visíveis.</p>
+<p>Na versão offline, o script <code>build_offline.py</code> troca a primeira tag pelo conteúdo inteiro do three.js (B3).</p>`,
+  links: [['B1', 'carrega a biblioteca'], ['B3', 'build_offline.py embute o three.js aqui'], ['J1.1', 'começa o código do jogo']] },
+
+// ---------------------------------------------------------------- CSS
+{ id: 'C1', lang: 'css', name: 'Variáveis de cor e fonte', tl: 'a paleta com nomes, definida uma vez', lines: 'linhas 12–31', code: [':root', '--amber', '--cyan', '--ok', '--bad'],
+  what: 'A paleta e as fontes do jogo, definidas uma vez com nomes: --space, --amber, --cyan, --ok, --bad, --mono, --display…',
+  how: `<p>São <b>propriedades personalizadas</b> do CSS. Qualquer regra escreve <code>var(--amber)</code> em vez do código da cor, então trocar uma linha aqui muda o jogo inteiro.</p>
+<p>O JavaScript também usa esses nomes: a barra de propelente recebe <code>var(--bad)</code> abaixo de 20% e <code>var(--amber)</code> abaixo de 45% (J6.1).</p>
+<p><code>color-scheme: dark</code> avisa o navegador que a página é escura, e as barras de rolagem e os controles nativos acompanham.</p>
+<p>Cada fonte tem uma lista de reserva, por exemplo <code>"Chakra Petch", "Segoe UI", system-ui, sans-serif</code>. Se a primeira não carregar, o navegador tenta a próxima.</p>`,
+  links: [['H1', 'as fontes vêm do cabeçalho'], ['C3', 'o HUD usa as cores'], ['J6.1', 'o JS pinta a barra de propelente com elas']] },
+
+{ id: 'C2', lang: 'css', name: 'Camadas e tela cheia', tl: 'canvas embaixo, HUD por cima, cliques atravessam', lines: 'linhas 32–37, 64, 74', code: ['#app', 'pointer-events', 'touch-action', 'env(safe-area-inset-*)'], fig: 'layers',
+  what: 'Faz o jogo ocupar a tela inteira e empilha as camadas: canvas no fundo, HUD por cima, cartão e manual no topo.',
+  how: `<ul>
+<li><code>#app</code> usa <code>position: fixed; inset: 0</code>: fica preso às quatro bordas da janela. O canvas, dentro dele, faz o mesmo com <code>position: absolute</code>.</li>
+<li>Os painéis vêm depois do canvas no HTML, então são desenhados por cima.</li>
+<li>O truque principal é <code>pointer-events: none</code> em todos os painéis <code>.hud</code>. Os cliques atravessam os painéis e chegam ao canvas, então dá para clicar perto do módulo mesmo com a telemetria na frente. Só o teclado virtual e a barra de ferramentas religam os cliques com <code>pointer-events: auto</code>.</li>
+<li><code>touch-action: none</code> impede que segurar o dedo na tela role a página ou dê zoom. <code>user-select: none</code> impede selecionar texto sem querer.</li>
+<li><code>env(safe-area-inset-top)</code> e as outras três bordas devolvem o tamanho do entalhe e das barras do celular, e os painéis se afastam delas.</li>
+</ul>`,
+  links: [['H2', 'o canvas, camada de baixo'], ['H3', 'os painéis, que deixam o clique passar'], ['H4', 'religa os cliques'], ['H5', 'religa os cliques']] },
+
+{ id: 'C3', lang: 'css', name: 'Aparência do HUD', tl: 'painéis translúcidos e cores de estado', lines: 'linhas 37–79', code: ['.panel', 'tabular-nums', '.crow.ok', '.key.on', '#toast.show'],
+  what: 'Painéis translúcidos, números que não tremem, pontos vermelhos e verdes, teclas que acendem e o aviso que aparece e some.',
+  how: `<ul>
+<li><code>.panel</code> tem fundo semitransparente e <code>backdrop-filter: blur(6px)</code>, que borra a cena atrás do painel e melhora a leitura.</li>
+<li><code>font-variant-numeric: tabular-nums</code> dá a todos os dígitos a mesma largura. Sem isso, "1,11" e "0,00" teriam larguras diferentes e os números tremeriam a cada quadro.</li>
+<li><b>Estado por classe.</b> <code>.dot</code> é vermelho por padrão e <code>.crow.ok .dot</code> é verde. <code>.key.on</code> acende a tecla. <code>#toast</code> começa com <code>opacity: 0</code> e <code>transition: opacity .3s</code>; com a classe <code>show</code>, vai a 1 e o navegador anima a passagem sozinho.</li>
+<li><code>.btn[aria-pressed="false"] #astState</code> deixa a palavra "desligados" cinza. O CSS reage direto ao atributo de acessibilidade.</li>
+</ul>
+<p>O JavaScript nunca escreve uma cor nesses elementos. Ele só liga e desliga classes.</p>`,
+  links: [['H3', 'estiliza os painéis'], ['H4', 'acende as teclas'], ['H5', 'reage a aria-pressed'], ['J6.1', 'o JS liga as classes'], ['C1', 'usa as variáveis de cor']] },
+
+{ id: 'C4', lang: 'css', name: 'Cartão de início e fim', tl: 'escurecimento, centralização, botão laranja', lines: 'linhas 81–99', code: ['#overlay', 'place-items: center', 'clamp()'],
+  what: 'O escurecimento radial sobre a cena, o cartão centralizado, o seletor segmentado e o botão laranja.',
+  how: `<p><code>#overlay</code> cobre a tela inteira e usa <code>display: grid; place-items: center</code>, o jeito mais curto de centralizar algo na horizontal e na vertical.</p>
+<p>O fundo é um gradiente radial, mais transparente no meio, para a cena continuar visível atrás do cartão.</p>
+<p>O título usa <code>clamp(28px, 6vw, 42px)</code>: cresce com a largura da tela (6% dela), mas nunca fica abaixo de 28 px nem acima de 42 px.</p>
+<p>O segmento ativo do seletor é pintado por <code>.seg[aria-pressed="true"]</code>, o mesmo padrão de estado por atributo do HUD.</p>`,
+  links: [['H6', 'estiliza o cartão']] },
+
+{ id: 'C5', lang: 'css', name: 'Adaptação ao celular', tl: 'regras que só valem em telas estreitas', lines: 'linhas 172–196', code: ['@media (max-width: 760px)', 'prefers-reduced-motion'],
+  what: 'Regras que só valem em telas de até 760 px de largura, e uma para quem pediu ao sistema para reduzir animações.',
+  how: `<p><code>@media (max-width: 760px) { … }</code> funciona como uma condição: as regras de dentro só se aplicam se a tela for estreita. Nesse caso:</p>
+<ul>
+<li>os dois painéis passam a ocupar meia tela cada, com <code>calc(50vw - 24px)</code>;</li>
+<li>as faixas de limite dos critérios somem para caber;</li>
+<li>o relógio desce para cima do teclado virtual;</li>
+<li>as teclas encolhem de 64 para 54 px e a barra de ferramentas vira uma coluna;</li>
+<li>no manual, o índice vira gaveta.</li>
+</ul>
+<p><code>@media (prefers-reduced-motion: reduce)</code> desliga as transições do aviso e da gaveta para quem configurou o sistema operacional para reduzir movimento.</p>`,
+  links: [['C2', 'reposiciona as camadas'], ['C3', 'encolhe o HUD'], ['H7', 'transforma o índice em gaveta']] },
+
+// ---------------------------------------------------------------- JS · J1 Configuração
+{ id: 'J1.1', grp: 'J1', lang: 'js', name: 'Constantes e limites', tl: 'aceleração, consumo, massas, critérios', lines: 'linhas 449–458 e 678–681', code: ['ACC', 'ANG', 'FUEL_T', 'LIM', 'CRASH_V', 'M_MOD', 'I_MOD'],
+  what: 'Os números que definem a física e as regras: aceleração dos jatos, consumo de propelente, posição do porto, limites de acoplamento, massa e inércia do módulo.',
+  how: `<p>Ficam no topo, com a unidade num comentário, para a física poder ser ajustada sem caçar números no meio do código.</p>
+<ul>
+<li><code>ACC = 0.42</code> m/s² por jato de translação. Com 9 000 kg, isso equivale a cerca de 3 780 N.</li>
+<li><code>ANG</code> = 10 °/s², convertido para rad/s² porque as funções de seno e cosseno trabalham em radianos.</li>
+<li><code>FUEL_T = 1.15</code> e <code>FUEL_R = 0.6</code>: percentual de propelente gasto por segundo, por jato de translação e por par de rotação.</li>
+<li><code>LIM</code> reúne os cinco critérios: <code>vx: 0.25</code>, <code>vy: 0.10</code>, <code>th: 4</code>, <code>w: 2</code>, <code>dy: 0.25</code>.</li>
+<li><code>CRASH_V = 0.8</code> m/s: acima disso, um impacto contra a estação destrói o módulo. Contra rochas, o limite é 75% disso.</li>
+<li>O momento de inércia não é digitado, é calculado: <code>I = m(3R² + L²)/12</code>, a fórmula de um cilindro girando em torno do eixo transversal. Com R = 0,85 m e L = 4,4 m, dá cerca de 16 150 kg·m².</li>
+</ul>`,
+  links: [['J3.2', 'o passo de física usa'], ['J3.5', 'o impulso usa a massa e a inércia'], ['J4.1', 'os critérios usam LIM']] },
+
+{ id: 'J1.2', grp: 'J1', lang: 'js', name: 'Geometria simplificada', tl: 'casco, estação e bicos em forma de números', lines: 'linhas 458–474', code: ['HULL', 'BOXES', 'NOZ'],
+  what: 'As formas usadas nas colisões e a posição de cada bico de jato. São bem mais simples que os modelos 3D.',
+  how: `<ul>
+<li><code>HULL</code>: para as colisões, o casco do módulo é um retângulo de 4,4 × 1,8 m, descrito no referencial do próprio módulo.</li>
+<li><code>BOXES</code>: a estação vira cinco retângulos alinhados aos eixos: adaptador, nó, laboratório, módulo de cima e cúpula de baixo.</li>
+<li><code>NOZ</code>: para cada um dos seis jatos, dois bicos no formato <code>[x, y, dx, dy]</code>, que é a posição no casco e a direção para onde o gás sai.</li>
+</ul>
+<p>Os jatos de rotação usam um bico perto de cada ponta, soprando em sentidos opostos. É um <b>binário</b>: duas forças iguais e contrárias que não estão na mesma linha. A soma das forças é zero, então o centro não se desloca, mas o torque não é zero, e o módulo gira.</p>
+<p>O mesmo <code>NOZ</code> alimenta os blocos de bico no modelo 3D, as plumas e as partículas de gás. A física em si não lê os bicos: ela só precisa saber quais jatos estão ligados.</p>`,
+  links: [['J3.4', 'colisões com a estação'], ['J2.5', 'monta os bicos e as plumas'], ['J2.8', 'emite o gás nos bicos']] },
+
+{ id: 'J1.3', grp: 'J1', lang: 'js', name: 'Teclas e formatação', tl: 'tecla → jato, radianos → graus, ponto → vírgula', lines: 'linhas 475–477', code: ['KEYMAP', 'deg()', 'fmt()'],
+  what: 'O mapa que liga cada tecla a um jato e duas funções pequenas de conversão.',
+  how: `<p><code>KEYMAP</code> liga o código da tecla ao nome do jato: <code>KeyD → right</code>, <code>KeyQ → ccw</code>. O código <code>KeyD</code> indica a <b>posição física</b> da tecla, não a letra impressa nela. Num teclado AZERTY ou Dvorak, vale a tecla que está no lugar do D.</p>
+<p><code>deg()</code> converte radianos em graus para mostrar no HUD.</p>
+<p><code>fmt()</code> formata números no padrão brasileiro: troca o ponto por vírgula, usa o sinal de menos tipográfico (−) e, quando pedido, coloca "+" nos positivos. Com o sinal sempre presente, o número não muda de largura ao passar de positivo para negativo.</p>`,
+  links: [['J5.1', 'o teclado usa o KEYMAP'], ['J6.1', 'o HUD formata tudo com fmt()']] },
+
+// ---------------------------------------------------------------- JS · J2 Mundo 3D
+{ id: 'J2.1', grp: 'J2', lang: 'js', name: 'Renderizador e luzes', tl: 'o motor de desenho, a cena e três luzes', lines: 'linhas 479–494', code: ['WebGLRenderer', 'Scene', 'PerspectiveCamera', 'DirectionalLight'],
+  what: 'Cria o motor de desenho do three.js, a cena (a lista de tudo o que existe no mundo 3D), a câmera e as luzes.',
+  how: `<ul>
+<li><code>WebGLRenderer</code> recebe o canvas do HTML e passa a desenhar nele (H2).</li>
+<li><code>setPixelRatio(min(devicePixelRatio, 2))</code>: em telas de alta densidade, desenha com mais pixels para ficar nítido, mas para em 2× para não pesar.</li>
+<li><code>sRGBEncoding</code> converte a luz calculada para o espaço de cor da tela. <code>ACESFilmicToneMapping</code> comprime os brilhos fortes como uma câmera de cinema, para o lado iluminado da estação não estourar em branco.</li>
+<li>A câmera é de perspectiva, com campo de visão vertical de 38°. Onde ela fica é decidido em J2.2.</li>
+<li>Três luzes: um <b>sol</b> direcional vindo da esquerda e de cima; uma <b>luz hemisférica</b> azulada vinda de baixo, que imita o brilho refletido pela Terra; e uma <b>ambiente</b> fraca para as sombras não ficarem pretas.</li>
+</ul>`,
+  links: [['H2', 'desenha no canvas'], ['B1', 'peças do three.js'], ['J2.2', 'posiciona a câmera'], ['J8', 'render() a cada quadro']] },
+
+{ id: 'J2.2', grp: 'J2', lang: 'js', name: 'Câmera fixa', tl: 'enquadra os 36 m de aproximação', lines: 'linhas 1063–1077', code: ['fitCamera()', 'resize()', 'viewHalfW', 'viewHalfH'],
+  what: 'Coloca a câmera num ponto que enquadra toda a zona de aproximação e refaz a conta quando a janela muda de tamanho.',
+  how: `<p>A câmera fica parada no referencial da estação. É uma decisão de física, não só de visual. Se ela seguisse o módulo, as estrelas e a estação pareceriam andar sem nenhuma força agindo nelas. Com ela fixa, tudo o que se move na tela se move de fato.</p>
+<p>A distância é calculada para caber 33 m de meia-largura e 17 m de meia-altura:</p>
+<p><code>dist = max(33 / (tan(fov/2) · aspecto), 17 / tan(fov/2))</code></p>
+<p>Em tela larga, quem limita é a altura; em tela estreita, é a largura. A câmera sobe 20% dessa distância, recua um pouco para a esquerda e olha para o ponto (−3, 0, 0). É isso que dá o ar de 2.5D: o plano do jogo visto levemente de cima.</p>
+<p>O tamanho visível, com 15% de folga, fica guardado em <code>viewHalfW</code> e <code>viewHalfH</code>. Os asteroides usam esses valores para nascer e sumir sempre fora da vista (J3.6).</p>`,
+  links: [['J3.6', 'informa o tamanho da área visível'], ['J5.2', 'o clique usa a projeção da câmera'], ['J2.1', 'a câmera criada lá']] },
+
+{ id: 'J2.3', grp: 'J2', lang: 'js', name: 'Estrelas e Terra', tl: 'fundo gerado por ruído, sem imagens', lines: 'linhas 509–582', code: ['starLayer()', 'hash()', 'vnoise()', 'fbm()', 'ShaderMaterial'], fig: 'fbm',
+  what: 'O fundo: 3 100 estrelas e uma Terra com continentes, gelo, nuvens e atmosfera. Nenhuma imagem é baixada; tudo é calculado ao abrir o jogo.',
+  how: `<p><b>Estrelas.</b> Pontos espalhados sobre uma esfera de 1,5 km de raio. Para não amontoar nos polos, a altura é sorteada de modo uniforme entre −1 e 1 e o ângulo também, o que dá densidade igual em toda a superfície. O tamanho é fixo em pixels (<code>sizeAttenuation: false</code>), como estrelas de verdade.</p>
+<p><b>Terra.</b> Uma textura de 768 × 384 pixels pintada pixel a pixel, em quatro etapas:</p>
+<ol>
+<li><code>hash()</code> transforma coordenadas inteiras num número pseudoaleatório entre 0 e 1. Mesma entrada, mesma saída.</li>
+<li><code>vnoise()</code> pega os quatro cantos da célula da grade e interpola suavemente entre eles. Resultado: manchas lisas.</li>
+<li><code>fbm()</code> soma 5 camadas (oitavas) desse ruído, cada uma com o dobro da frequência e metade da amplitude. As formas grandes ganham detalhes cada vez menores, como um litoral.</li>
+<li>Limiares: acima de 0,6 é terra (verde, ou deserto onde um segundo ruído é alto e a latitude é baixa); perto dos polos, gelo; o resto é oceano, mais claro onde é raso.</li>
+</ol>
+<p>O ruído se repete na horizontal, então a costura da textura em volta da esfera não aparece.</p>
+<p><b>Nuvens</b>: outro fbm, usado como transparência numa esfera 0,6% maior. <b>Atmosfera</b>: uma esfera 6% maior desenhada por dentro, com um programa de GPU próprio cujo brilho é <code>(1 − |N·V|)^2,2</code>. Na borda da esfera, a superfície fica de lado para a câmera, N·V ≈ 0 e o brilho é máximo. No centro, some. É o halo azul.</p>
+<p>A Terra é uma miniatura de 360 m de raio, com o centro 445 m abaixo e 260 m atrás do plano do jogo, para caber no quadro. Ela gira devagar.</p>`,
+  links: [['J2.1', 'entra na mesma cena'], ['J2.8', 'gira a cada quadro']] },
+
+{ id: 'J2.4', grp: 'J2', lang: 'js', name: 'Estação', tl: 'a ISS montada com cilindros e caixas', lines: 'linhas 583–652', code: ['buildStation()', 'cylX()', 'canvasTex()', 'beacons', 'corridor'],
+  what: 'Monta a ISS com formas simples, o farol do porto e o corredor tracejado de aproximação.',
+  how: `<ul>
+<li><b>Texturas</b> também são desenhadas por código num canvas invisível: a grade das placas do casco e as células azuis dos painéis solares. <code>canvasTex()</code> transforma esse desenho em textura.</li>
+<li><code>cylX()</code> cria um cilindro e o deita no eixo x, porque o three.js cria cilindros em pé.</li>
+<li><b>Peças</b>: adaptador com anel e alvo escuro em x = 8 m (<code>PORT_X</code>), nó, laboratório, módulo de cima e cúpula de baixo. Ocupam as mesmas posições dos retângulos de colisão <code>BOXES</code> (J1.2).</li>
+<li>A <b>treliça</b> de 46 m com 8 asas solares é perpendicular ao plano do jogo. Como nada se move nessa direção, ela não participa da física. Só dá profundidade.</li>
+<li><b>Farol</b>: duas esferas e uma luz pontual. Ficam verdes se os cinco critérios estão ok e âmbar se não, piscando cerca de uma vez por segundo.</li>
+<li><b>Corredor</b>: uma linha tracejada em y = 0 e duas linhas que afunilam de ±3,5 m para ±0,25 m no porto, exatamente a tolerância do critério de alinhamento.</li>
+</ul>`,
+  links: [['J1.2', 'as mesmas posições de BOXES'], ['J4.1', 'o farol segue os critérios'], ['J2.8', 'atualiza o farol']] },
+
+{ id: 'J2.5', grp: 'J2', lang: 'js', name: 'Módulo e plumas', tl: 'o modelo 3D e um cone de gás por bico', lines: 'linhas 782–819', code: ['buildModule()', 'mod', 'plumes'],
+  what: 'O modelo 3D do módulo e uma pluma de gás para cada um dos 12 bicos.',
+  how: `<p>O módulo é um <code>Group</code>, um contêiner cujas peças se movem juntas: casco, manta dourada, anel de acoplamento, sonda com ponta laranja, janelas e painéis solares. Mover ou girar o grupo move todas elas. Por isso a física só precisa informar três números: x, y e θ.</p>
+<p>Os painéis solares saem do plano do jogo, de novo para dar profundidade.</p>
+<p>Para cada bico de <code>NOZ</code> há um bloco escuro no casco e um cone de pluma. A pluma usa <b>mistura aditiva</b>: soma sua cor à do que está atrás, como gás iluminado pelo sol. Ela começa com opacidade zero. Quem acende é a sincronização visual (J2.8).</p>`,
+  links: [['J1.2', 'posição dos bicos'], ['J2.8', 'move o grupo e acende as plumas'], ['J3.1', 'segue x, y e θ']] },
+
+{ id: 'J2.6', grp: 'J2', lang: 'js', name: 'Partículas', tl: '2 400 vagas reaproveitadas em círculo', lines: 'linhas 820–849', code: ['emit()', 'updateParticles()', 'Float32Array', 'pIdx'], fig: 'ring',
+  what: 'Até 2 400 pontinhos de luz para o gás dos jatos, a poeira dos choques e a explosão.',
+  how: `<p>Criar e destruir objetos o tempo todo pesaria. Em vez disso, existe um conjunto fixo de 2 400 vagas guardado em listas de números (<code>Float32Array</code>): posição, velocidade, cor e vida de cada partícula.</p>
+<ul>
+<li><code>emit()</code> grava na vaga apontada por <code>pIdx</code> e avança o índice. Ao chegar no fim, volta ao zero. É um <b>buffer circular</b>: se todas as vagas estiverem ocupadas, a partícula mais antiga é sobrescrita.</li>
+<li><code>updateParticles()</code> desconta a vida, move cada partícula em linha reta e escurece a cor por (vida restante)². Com mistura aditiva, escurecer é o mesmo que desaparecer.</li>
+<li>Partícula morta é levada para x = 9 999, longe da vista.</li>
+</ul>
+<p>A velocidade do gás é a do módulo mais 5 a 8 m/s na direção do bico: o gás herda o movimento de quem o soltou.</p>
+<p>Uso: 140 partículas por segundo em cada bico ativo, 14 por choque entre rochas, 40 por choque com o módulo e 420 na explosão.</p>`,
+  links: [['J2.8', 'emite o gás dos jatos'], ['J3.6', 'poeira dos choques'], ['J4.2', 'explosão do módulo']] },
+
+{ id: 'J2.7', grp: 'J2', lang: 'js', name: 'Forma dos asteroides', tl: 'esferas deformadas com calombos e crateras', lines: 'linhas 658–677', code: ['IcosahedronGeometry', 'flatShading'],
+  what: 'Gera 9 rochas diferentes a partir de esferas deformadas.',
+  how: `<p>Cada rocha começa como um icosaedro subdividido, uma esfera feita de triângulos. Depois, cada vértice é empurrado para fora ou para dentro por:</p>
+<ul>
+<li>uma soma de senos com fases sorteadas, que faz os calombos;</li>
+<li>quatro crateras em direções sorteadas: perto do centro de cada uma, o vértice afunda com perfil de parábola.</li>
+</ul>
+<p><code>flatShading</code> deixa cada triângulo com uma cor só, o que dá o aspecto de rocha facetada.</p>
+<p>O tamanho é aplicado depois, por escala, quando a rocha é sorteada (raio de 0,7 a 2,1 m). Para a física, a rocha é um círculo de raio 0,95 r, um pouco menor que a forma, porque a superfície tem reentrâncias.</p>`,
+  links: [['J3.6', 'a física das rochas'], ['J2.8', 'traça a rota de cada rocha']] },
+
+{ id: 'J2.8', grp: 'J2', lang: 'js', name: 'Sincronização visual', tl: 'copia a física para a cena a cada quadro', lines: 'linhas 1058–1117', code: ['syncModule()', 'updateVisuals()'],
+  what: 'Depois da física, copia o estado para a cena 3D e atualiza tudo o que é só visual.',
+  how: `<ul>
+<li><code>syncModule()</code>: posição do grupo do módulo = (S.x, S.y) e rotação = S.th. É aqui que a física e o desenho se encontram.</li>
+<li><b>Plumas</b>: a opacidade persegue um alvo (0,55 a 0,8 com o jato ligado, 0 desligado) com <code>opac += (alvo − opac) · min(1, dt·30)</code>. É uma aproximação exponencial: a pluma acende e apaga em cerca de 1/30 s, sem corte seco. O comprimento treme um pouco a cada quadro.</li>
+<li><b>Gás</b>: 140 partículas por segundo por bico. A 60 Hz, isso dá 2,33 por quadro. O número é arredondado para cima ou para baixo por sorteio, e na média sai certo.</li>
+<li><b>Trajetória prevista</b>: uma linha de 40 pontos, <code>x + vx·t</code>, até 25 s à frente. Sem atrito e sem jatos, é exatamente o que vai acontecer.</li>
+<li><b>Rotas das rochas</b>: um segmento de 20 s à frente de cada uma.</li>
+<li><b>Farol</b>: verde ou âmbar conforme <code>criteria()</code>, piscando por um seno do tempo.</li>
+<li><b>Ambiente</b>: Terra, nuvens e estrelas giram devagar; as nuvens um pouco mais rápido.</li>
+</ul>`,
+  links: [['J3.1', 'lê o estado do módulo'], ['J2.5', 'move o módulo e as plumas'], ['J2.6', 'emite o gás'], ['J4.1', 'cor do farol'], ['J8', 'é chamada a cada quadro']] },
+
+// ---------------------------------------------------------------- JS · J3 Física
+{ id: 'J3.1', grp: 'J3', lang: 'js', name: 'Estado do módulo', tl: 'o objeto S: a fonte da verdade', lines: 'linhas 878–904', code: ['S', 'reset()'],
+  what: 'Um objeto S guarda tudo o que a física sabe do módulo: posição, ângulo, velocidades, propelente e tempo de missão.',
+  how: `<p><code>S = { x, y, th, vx, vy, w, fuel, t, active }</code>: posição em metros, atitude θ em radianos, velocidade linear em m/s, velocidade angular ω em rad/s, propelente em %, tempo em s e a lista de jatos ligados.</p>
+<p>É a fonte da verdade do jogo. O 3D, o HUD, o som e as regras só leem daqui. Só a física e a colisão escrevem.</p>
+<p><code>reset()</code> prepara uma nova partida:</p>
+<ul>
+<li>x = −28 m (o porto está em x = 8 m);</li>
+<li>y sorteado entre −4,5 e 4,5 m, mas nunca a menos de 1,5 m do eixo, para sempre haver correção a fazer;</li>
+<li>atitude sorteada entre 12° e 32°, para cima ou para baixo;</li>
+<li>velocidades zeradas e propelente em 100%.</li>
+</ul>
+<p>Também reposiciona os asteroides e apaga as partículas.</p>`,
+  links: [['J3.2', 'atualizado a cada passo'], ['J2.8', 'copiado para o 3D'], ['J6.1', 'mostrado no HUD']] },
+
+{ id: 'J3.2', grp: 'J3', lang: 'js', name: 'Passo de integração', tl: 'avança o mundo 1/120 s', lines: 'linhas 922–979', code: ['step(h)'],
+  what: 'Avança o mundo em 1/120 de segundo. Roda 120 vezes por segundo, seja qual for a taxa de atualização da tela.',
+  how: `<p>Dentro de um passo, a ordem é:</p>
+<ol>
+<li>Lê os jatos ligados. Sem propelente, nenhum funciona.</li>
+<li>Monta o empuxo no referencial do módulo: <code>fx = esquerda − direita</code> (o jato do lado direito empurra para a esquerda) e <code>fy = baixo − cima</code>.</li>
+<li>Gira esse vetor pelo ângulo θ, para o referencial do mundo, e soma à velocidade: <code>v += a·h</code>. Na rotação, <code>ω += α·h</code>.</li>
+<li>Desconta o propelente proporcionalmente ao tempo do passo.</li>
+<li>Move os asteroides (J3.6).</li>
+<li>Atualiza a posição usando a velocidade já nova: <code>x += v·h</code>. Usar a velocidade nova, e não a antiga, é o que faz o método de Euler ser <b>semi-implícito</b>. Ele conserva energia muito melhor que o Euler comum.</li>
+<li>Mantém θ entre −180° e 180°.</li>
+<li>Testa, nesta ordem: sonda no porto, casco contra a estação, casco contra rochas, saída da área. O primeiro teste positivo resolve a colisão e encerra o passo.</li>
+</ol>
+<p>Repare no que não existe aqui: nenhuma linha reduz a velocidade. Sem jato, a velocidade fica constante. A primeira lei de Newton aparece no código como ausência de código.</p>`,
+  links: [['J5.4', 'recebe os jatos ligados'], ['J3.3', 'gira o empuxo'], ['J3.6', 'move as rochas'], ['J4.1', 'checa os critérios'], ['J3.4', 'testa colisões'], ['J8', 'é chamado pelo laço']] },
+
+{ id: 'J3.3', grp: 'J3', lang: 'js', name: 'Referenciais', tl: 'coordenadas do módulo ↔ do mundo', lines: 'linhas 906–907', code: ['bodyToWorld()', 'worldToBody()'], fig: 'frames',
+  what: 'Converte pontos entre as coordenadas do módulo (frente e lado) e as do mundo (estação e tela).',
+  how: `<p>Os jatos estão presos ao casco. "Direita" é a direita do módulo, que muda conforme ele gira. Para levar um ponto do módulo ao mundo, gira-se o ponto por θ e soma-se a posição do centro:</p>
+<p><code>x_mundo = x + bx·cos θ − by·sen θ</code><br><code>y_mundo = y + bx·sen θ + by·cos θ</code></p>
+<p>O caminho inverso subtrai a posição e gira por −θ.</p>
+<p>As duas funções aparecem em quase toda a física: posição da ponta da sonda, pontos do casco, cantos da estação vistos pelo módulo, ponto de choque com rochas, saída do gás das plumas e direção do clique do mouse.</p>`,
+  links: [['J3.2', 'gira o empuxo'], ['J3.4', 'pontos do casco e cantos'], ['J4.1', 'ponta da sonda'], ['J5.2', 'direção do clique']] },
+
+{ id: 'J3.4', grp: 'J3', lang: 'js', name: 'Colisão com a estação', tl: 'onde encostou, de que lado, quique ou destruição', lines: 'linhas 942–968 e 1015–1030', code: ['HULL_PTS', 'contact()'],
+  what: 'Descobre se o casco encostou na estação, onde e de que lado, e decide entre quicar e ser destruído.',
+  how: `<ol>
+<li><b>Sonda primeiro.</b> Se a ponta passou de x = 8 m a menos de 0,95 m do eixo, é uma tentativa de acoplamento. Com os cinco critérios ok, acopla (J4.2). Senão, quica, e o aviso lista o que falhou, por exemplo "aproximação 0,41 m/s".</li>
+<li><b>Casco contra estação, nos dois sentidos.</b> (a) 16 pontos do contorno do casco são testados dentro de cada retângulo da estação. (b) Os quatro cantos de cada retângulo são testados dentro do casco, no referencial do módulo. O segundo teste pega o caso de uma quina da estação entrar entre dois pontos amostrados.</li>
+<li><b>Qual face?</b> A de menor penetração. Ela dá a normal, que é a direção para empurrar o módulo para fora, e a profundidade.</li>
+<li><b>Decisão.</b> Velocidade do ponto de contato ao longo da normal acima de 0,8 m/s: destruição. Abaixo: impulso com restituição 0,3 (J3.5), e o módulo é empurrado para fora da parede pela profundidade medida.</li>
+</ol>
+<p>A estação, com cerca de 420 t, é tratada como fixa: não recebe impulso.</p>`,
+  links: [['J1.2', 'usa HULL e BOXES'], ['J3.3', 'converte pontos'], ['J3.5', 'calcula o quique'], ['J4.1', 'decide se acopla'], ['J4.2', 'destruição']] },
+
+{ id: 'J3.5', grp: 'J3', lang: 'js', name: 'Impulso de corpo rígido', tl: 'o tranco no ponto de contato, com giro', lines: 'linhas 997–1014', code: ['rigidImpulse()', 'normalSpeed()'], fig: 'impulse',
+  what: 'Calcula o tranco de uma colisão no ponto exato de contato. Ele muda a velocidade e também a rotação.',
+  how: `<ol>
+<li><code>r</code> = vetor do centro do módulo até o ponto de contato P.</li>
+<li>Velocidade do ponto: <code>v + ω × r</code>. Numa ponta de um módulo que gira, o ponto anda mais rápido que o centro.</li>
+<li>Componente dessa velocidade ao longo da normal, relativa ao outro corpo: <code>vn</code>. Se for maior ou igual a zero, os corpos já estão se afastando e nada acontece.</li>
+<li>Tamanho do impulso: <code>J = −(1+e)·vn / (1/m + 1/m_outro + (r×n)²/I)</code>.</li>
+<li>Aplica: <code>v += J·n/m</code>, <code>ω += (r×n)·J/I</code>, e o oposto na rocha, se houver.</li>
+</ol>
+<p>O termo <code>(r×n)²/I</code> mede quanto do choque vira giro. Se a linha do impulso passa pelo centro, r×n = 0 e o módulo só muda de velocidade. Se passa longe, parte do efeito vai para a rotação.</p>
+<p><code>e</code> é o coeficiente de restituição: 0 seria grudar, 1 seria quicar sem perder energia. O jogo usa 0,3 contra a estação e 0,35 contra rochas. Momento linear e angular se conservam.</p>`,
+  links: [['J3.4', 'contato com a estação'], ['J3.6', 'choque com rochas'], ['J1.1', 'usa M_MOD e I_MOD']] },
+
+{ id: 'J3.6', grp: 'J3', lang: 'js', name: 'Asteroides', tl: 'deriva, choques entre si, reposição fora da vista', lines: 'linhas 678–781 e 980–996', code: ['moveAsteroids()', 'spawnRock()', 'asteroidHit()'],
+  what: 'Move as rochas em linha reta, resolve os choques entre elas, com a estação e com o módulo, e repõe as que saem.',
+  how: `<p><b>Massa</b>: <code>m = ρ·(4/3)πr³</code>, com ρ = 2 000 kg/m³ e raio de 0,7 a 2,1 m: de 2,9 a 78 t.</p>
+<p><b>A cada passo</b> (<code>moveAsteroids</code>):</p>
+<ol>
+<li>Inércia pura: posição += velocidade × h. O giro 3D de cada rocha é constante e só visual.</li>
+<li>Rocha contra rocha: se os círculos se sobrepõem e estão se aproximando, impulso ao longo da linha dos centros com e = 0,6. Esferas sem atrito não trocam giro, porque o impulso passa pelos centros. Depois, as duas são separadas na proporção do inverso das massas, o que deixa o centro de massa do par no lugar.</li>
+<li>Rocha contra estação: ponto mais próximo do retângulo e reflexão da velocidade normal.</li>
+<li>Rocha que passou bem além da área visível e está se afastando sai do jogo.</li>
+</ol>
+<p><b>Reposição</b>: cada vaga vazia tem 80% de chance por segundo de receber uma rocha nova. Ela nasce num círculo fora da vista e mira um ponto sorteado do campo, a 0,06–0,32 m/s. Nada aparece nem some na frente da câmera.</p>
+<p><b>Contra o módulo</b> (<code>asteroidHit</code>): ponto do casco mais próximo do centro da rocha, ou a ponta da sonda, se estiver mais perto. Impacto acima de 0,6 m/s destrói. Abaixo, impulso de corpo rígido com e = 0,35 e um aviso com a massa da rocha.</p>`,
+  links: [['J3.5', 'choque com o módulo'], ['J2.7', 'a forma de cada rocha'], ['J2.2', 'nasce e some fora da vista'], ['J6.2', 'liga e desliga'], ['J2.6', 'poeira dos choques']] },
+
+// ---------------------------------------------------------------- JS · J4 Regras
+{ id: 'J4.1', grp: 'J4', lang: 'js', name: 'Critérios de acoplamento', tl: 'as cinco condições, medidas na ponta da sonda', lines: 'linhas 912–921', code: ['criteria()'],
+  what: 'Mede as cinco condições de acoplamento a partir do estado do módulo.',
+  how: `<p>Primeiro calcula onde está a ponta da sonda no mundo: <code>bodyToWorld(TIP, 0)</code>, com TIP = 2,75 m à frente do centro. Depois testa:</p>
+<ul>
+<li>aproximação: <code>vx ≤ 0,25</code> m/s (com sinal: afastar-se do porto nunca é problema);</li>
+<li>lateral: <code>|vy| ≤ 0,10</code> m/s;</li>
+<li>atitude: <code>|θ| ≤ 4°</code>;</li>
+<li>rotação: <code>|ω| ≤ 2 °/s</code>;</li>
+<li>alinhamento: <code>|y da ponta| ≤ 0,25</code> m.</li>
+</ul>
+<p>O alinhamento usa a posição da ponta, não a do centro. Com o módulo inclinado, a ponta fica fora do eixo mesmo que o centro esteja nele.</p>
+<p>Três partes leem essa função: o passo de física (para decidir entre acoplar e quicar), o HUD (pontos verdes) e o farol da estação.</p>`,
+  links: [['J3.3', 'posição da ponta'], ['J3.4', 'decide acoplar ou quicar'], ['J6.1', 'pontos verdes do HUD'], ['J2.8', 'cor do farol'], ['J1.1', 'limites em LIM']] },
+
+{ id: 'J4.2', grp: 'J4', lang: 'js', name: 'Estados da partida', tl: 'intro → play → acoplado, destruído ou perdido', lines: 'linhas 881, 1031–1057, 1335–1342', code: ['state', 'dock()', 'crash()', 'end()'], fig: 'states',
+  what: 'Uma máquina de estados: a variável state diz em que fase o jogo está, e cada parte do código consulta essa variável antes de agir.',
+  how: `<p>Só em <code>play</code> a física roda e os jatos funcionam.</p>
+<ul>
+<li><code>dock()</code>: zera as velocidades e começa uma animação de captura de 1,4 s que leva o módulo até o porto, com a curva suave <code>k²(3 − 2k)</code> (começa e termina devagar). Ela representa as travas puxando o módulo e é interpolada, não simulada. Ao terminar, o estado vira <code>docked</code> e, 0,7 s depois, aparece o cartão de resultado.</li>
+<li><code>crash()</code>: 420 partículas quentes, o módulo some, som grave longo. Após 1,6 s, o estado vira <code>over</code>.</li>
+<li><b>Perdido</b>: o módulo saiu da área (x &lt; −58 m, x &gt; 46 m ou |y| &gt; 30 m).</li>
+<li>Na <b>intro</b>, o módulo balança devagar por um seno no ângulo. É só enfeite da tela inicial.</li>
+</ul>`,
+  links: [['J3.4', 'contato decide dock ou crash'], ['J8', 'o laço anima cada estado'], ['J6.2', 'mostra o cartão final'], ['J2.6', 'explosão']] },
+
+{ id: 'J4.3', grp: 'J4', lang: 'js', name: 'Pontuação', tl: 'nota de 0 a 100 e conceito', lines: 'linhas 1154–1179', code: ['showEnd()', 'score'],
+  what: 'Transforma a qualidade do acoplamento numa pontuação e num conceito.',
+  how: `<p>Soma cinco parcelas, cada uma limitada a zero para nunca ficar negativa:</p>
+<ul>
+<li>até 25 pontos por velocidade baixa: <code>25·(1 − v/0,25)</code>;</li>
+<li>até 20 por atitude e até 20 por alinhamento, pela mesma fórmula;</li>
+<li>0,25 ponto por % de propelente restante;</li>
+<li>até 10 por rapidez, perdendo 1 ponto a cada 18 s.</li>
+</ul>
+<p>Conceitos: 70 ou mais é Excelente, 50 ou mais é Muito bom, 35 ou mais é Bom, abaixo disso é Dentro do limite. A rotação residual aparece na tabela, mas não entra na nota.</p>`,
+  links: [['J4.2', 'chamada ao acoplar'], ['H6', 'escrita no cartão']] },
+
+// ---------------------------------------------------------------- JS · J5 Entrada
+{ id: 'J5.1', grp: 'J5', lang: 'js', name: 'Teclado', tl: 'anota as teclas pressionadas; não age no evento', lines: 'linhas 1275–1290', code: ['keydown', 'keyup', 'blur', 'input.keys'],
+  what: 'Registra quais teclas estão pressionadas agora e trata os atalhos.',
+  how: `<p>O navegador dispara um <b>evento</b> <code>keydown</code> ao apertar uma tecla e <code>keyup</code> ao soltar. Para as teclas de jato, o jogo não age no evento: só anota. A tecla entra num <code>Set</code> (uma lista sem repetidos) e sai quando é solta. Quem consulta essa lista é o passo de física, 120 vezes por segundo.</p>
+<p>Isso separa o ritmo do teclado do ritmo da simulação. Segurar uma tecla faz o sistema repetir o <code>keydown</code> várias vezes, mas adicionar a um Set algo que já está lá não muda nada.</p>
+<p><code>preventDefault()</code> impede que o navegador também role a página com essas teclas.</p>
+<p>Os atalhos (F, R, P, M, T, Enter) agem na hora.</p>
+<p>Se a janela perde o foco (<code>blur</code>), as listas são esvaziadas. Sem isso, trocar de aba com o D apertado deixaria o jato ligado para sempre, porque o <code>keyup</code> nunca chegaria.</p>`,
+  links: [['J1.3', 'traduz pelo KEYMAP'], ['J5.4', 'entrega à junção'], ['H7', 'F e Esc'], ['J6.2', 'atalhos de pausa, som, reinício']] },
+
+{ id: 'J5.2', grp: 'J5', lang: 'js', name: 'Mouse e toque', tl: 'descobre de que lado do módulo você clicou', lines: 'linhas 1292–1312', code: ['jetFromScreen()', 'pointerdown', 'setPointerCapture'],
+  what: 'Segurar o botão do mouse ou o dedo perto do módulo dispara o jato daquele lado.',
+  how: `<p>Eventos de ponteiro (<code>pointerdown</code>, <code>pointermove</code>, <code>pointerup</code>) tratam mouse, toque e caneta do mesmo jeito.</p>
+<ol>
+<li>Projeta o centro do módulo do mundo 3D para a tela (<code>Vector3.project(camera)</code>) e obtém a posição em pixels.</li>
+<li>Calcula o vetor do módulo até o ponteiro, invertendo o y, porque na tela o y cresce para baixo.</li>
+<li>Gira esse vetor por −θ para o referencial do módulo (J3.3).</li>
+<li>Escolhe o eixo dominante: se |x| &gt; |y|, é o jato da direita ou da esquerda; senão, o de cima ou o de baixo.</li>
+</ol>
+<p>A menos de 18 px do centro, nada dispara. A conta é refeita a cada quadro enquanto o ponteiro está pressionado: se o módulo gira, o jato escolhido muda junto.</p>
+<p><code>setPointerCapture</code> garante que o "soltar" seja recebido mesmo se o dedo sair do canvas.</p>`,
+  links: [['H2', 'escuta o canvas'], ['J2.2', 'usa a projeção da câmera'], ['J3.3', 'gira para o módulo'], ['J5.4', 'entrega à junção']] },
+
+{ id: 'J5.3', grp: 'J5', lang: 'js', name: 'Botões da tela', tl: 'liga as seis teclas virtuais aos jatos', lines: 'linhas 1313–1320', code: ['keyEls', 'input.pad'],
+  what: 'Liga os seis botões do teclado virtual aos jatos.',
+  how: `<p>Um laço percorre os botões e lê o <code>data-jet</code> de cada um (H4). Ao pressionar, o jato entra no Set <code>input.pad</code>; ao soltar, sai.</p>
+<p>O soltar é escutado em três eventos: <code>pointerup</code>, <code>pointercancel</code> e <code>lostpointercapture</code>. São três maneiras de um toque terminar, incluindo o sistema interromper o gesto (uma notificação, por exemplo).</p>
+<p>Com o botão focado pelo teclado, Espaço ou Enter também disparam o jato.</p>`,
+  links: [['H4', 'lê o data-jet'], ['J5.4', 'entrega à junção']] },
+
+{ id: 'J5.4', grp: 'J5', lang: 'js', name: 'Junção das entradas', tl: 'teclado + botões + ponteiro = uma lista de jatos', lines: 'linhas 897–904', code: ['activeJets()'],
+  what: 'Junta teclado, botões e ponteiro numa única lista de jatos ligados.',
+  how: `<p>Cria um Set vazio e adiciona: o jato de cada tecla pressionada (via <code>KEYMAP</code>), cada jato dos botões da tela e o jato escolhido pelo ponteiro.</p>
+<p>Por ser um Set, apertar D no teclado e o botão D na tela ao mesmo tempo não dobra o empuxo.</p>
+<p>A física não sabe de onde veio o comando. Ela só recebe nomes de jatos. A mesma função também é usada pelo HUD para acender as teclas virtuais.</p>`,
+  links: [['J5.1', 'teclado'], ['J5.2', 'ponteiro'], ['J5.3', 'botões'], ['J3.2', 'entrega à física'], ['J6.1', 'acende as teclas']] },
+
+// ---------------------------------------------------------------- JS · J6 Interface
+{ id: 'J6.1', grp: 'J6', lang: 'js', name: 'Atualização do HUD', tl: 'escreve números e liga classes a cada quadro', lines: 'linhas 1118–1151', code: ['updateHUD()', 'setCrit()', 'toast()', 'el'],
+  what: 'A cada quadro, escreve os números da telemetria, colore os critérios, atualiza a barra de propelente, o relógio e as teclas acesas.',
+  how: `<p>Ao carregar, guarda as referências aos elementos do HUD num objeto <code>el</code>, para não procurar no HTML a cada quadro.</p>
+<p>Depois, cada atualização é trocar <code>textContent</code> (o texto da tag) e ligar ou desligar classes:</p>
+<ul>
+<li>Telemetria: todos os números passam por <code>fmt()</code> (J1.3).</li>
+<li>Critérios: <code>setCrit()</code> liga a classe <code>ok</code> e escreve o valor.</li>
+<li>Asteroide mais próximo: distância centro a centro, menos 95% do raio da rocha, menos 1 m. Fica âmbar abaixo de 5 m e vermelha abaixo de 2,5 m.</li>
+<li>Propelente: a barra muda de largura (<code>width: 73%</code>) e de cor por variável CSS.</li>
+<li>Aviso: <code>toast()</code> mostra uma mensagem por 3,2 s. Se a mesma mensagem chega de novo, só renova o tempo.</li>
+</ul>
+<p>Esse é o caminho JS → HTML → CSS: o JS escreve na árvore de elementos e o CSS decide a aparência.</p>`,
+  links: [['H3', 'escreve nos painéis'], ['C3', 'liga as classes de estado'], ['C1', 'cores da barra'], ['J4.1', 'lê os critérios'], ['J3.1', 'lê o estado'], ['J5.4', 'acende as teclas']] },
+
+{ id: 'J6.2', grp: 'J6', lang: 'js', name: 'Controles da partida', tl: 'iniciar, pausar, som, asteroides, tela final', lines: 'linhas 1152–1223', code: ['start()', 'togglePause()', 'setAsteroids()', 'syncMode()', 'showEnd()'],
+  what: 'Iniciar, reiniciar, pausar, ligar o som, ligar e desligar asteroides e montar a tela de fim.',
+  how: `<ul>
+<li><code>start()</code>: liga o áudio (o navegador exige um clique antes), chama <code>reset()</code>, muda o estado para <code>play</code> e esconde o cartão.</li>
+<li><b>Pausa</b>: só existe durante <code>play</code>. Pausado, a física para e o tempo visual fica em zero, mas a cena continua sendo desenhada.</li>
+<li><b>Asteroides</b>: a escolha é salva em <code>localStorage</code>, uma pequena memória do navegador para cada site, e volta na próxima visita. No meio da partida, desligar remove as rochas. Ligar não faz rochas surgirem do nada: elas passam a chegar de fora da vista. <code>syncMode()</code> atualiza <code>aria-pressed</code> em todos os botões ligados a essa escolha.</li>
+<li><code>showEnd()</code> monta o texto do resultado: acoplado (com pontuação), colisão ou perdido, cada um com a explicação física do que aconteceu.</li>
+</ul>`,
+  links: [['H5', 'botões da barra'], ['H6', 'cartão inicial e final'], ['J4.2', 'reage aos estados'], ['J4.3', 'pontuação'], ['J7', 'liga e silencia o som'], ['B2', 'usa localStorage']] },
+
+// ---------------------------------------------------------------- JS · J7 Som
+{ id: 'J7', grp: 'J7', lang: 'js', name: 'Síntese de som', tl: 'chiado e baques gerados na hora, sem arquivos', lines: 'linhas 850–877', code: ['initAudio()', 'burst()', 'AudioContext'],
+  what: 'O chiado dos jatos e os baques de colisão, gerados por código, sem nenhum arquivo de áudio.',
+  how: `<p>Usa a <b>Web Audio API</b>, que monta o som como um circuito: fontes ligadas a filtros, ligados a amplificadores, ligados à saída.</p>
+<p><b>Chiado contínuo</b>: 2 s de ruído branco (números aleatórios) tocando em loop → filtro passa-faixa em 1 500 Hz, que soa como gás escapando → ganho → ganho mestre → alto-falante. O ganho fica em zero e sobe 0,06 por jato ligado, até 0,16. A mudança é suavizada com constante de tempo de 30 ms, para não estalar.</p>
+<p><b>Baque</b> (<code>burst</code>): um ruído com filtro passa-baixa e volume caindo exponencialmente, somado a um oscilador que desce de frequência até 30 Hz. Cada evento usa uma frequência de corte: 900 Hz no contato com a estação, 700 Hz no choque com rocha, 500 Hz na captura, 380 Hz no travamento e 260 Hz na explosão.</p>
+<p>O ganho mestre é o botão de mudo. O áudio só é criado no primeiro clique ou toque, porque os navegadores bloqueiam som antes de o usuário interagir com a página.</p>`,
+  links: [['B2', 'Web Audio do navegador'], ['J6.2', 'mudo e início'], ['J8', 'ajusta o chiado a cada quadro'], ['J3.4', 'baque no contato']] },
+
+// ---------------------------------------------------------------- JS · J8 Laço
+{ id: 'J8', grp: 'J8', lang: 'js', name: 'Laço principal', tl: 'o coração: roda uma vez por quadro de tela', lines: 'linhas 1321–1353', code: ['frame(now)', 'requestAnimationFrame', 'H = 1/120', 'acc'], fig: 'accum',
+  what: 'Uma função chamada uma vez por quadro de tela. Ela roda a física, atualiza o visual e desenha.',
+  how: `<ul>
+<li><code>requestAnimationFrame(frame)</code> pede ao navegador para chamar <code>frame</code> logo antes da próxima atualização da tela. No fim, <code>frame</code> faz o mesmo pedido de novo, e o ciclo continua. Numa tela de 60 Hz, isso acontece a cada 16,7 ms.</li>
+<li><code>dt</code> é o tempo real desde o quadro anterior, limitado a 0,1 s. Se a aba ficou em segundo plano, o jogo não tenta recuperar segundos de física de uma vez.</li>
+<li><b>Acumulador</b>: <code>acc += dt</code>; enquanto <code>acc ≥ 1/120</code>, roda um <code>step(1/120)</code> e desconta. A 60 Hz, são 2 passos por quadro; a 144 Hz, às vezes 0, às vezes 1. O passo é sempre o mesmo, e a sobra fica guardada para o quadro seguinte. Por isso a física dá o mesmo resultado em qualquer monitor.</li>
+<li>Fora de <code>play</code>: os asteroides continuam derivando ao fundo, a animação de captura avança e o cronômetro da explosão corre.</li>
+<li>Depois da física: ajusta o volume do chiado, chama <code>updateVisuals</code> e <code>updateHUD</code> e, por fim, <code>renderer.render(scene, camera)</code>.</li>
+<li>Com o manual aberto, o quadro só atualiza o relógio interno e sai. A cena congela.</li>
+</ul>
+<p>As três últimas linhas do arquivo dão a partida: <code>reset()</code>, <code>resize()</code> e o primeiro <code>requestAnimationFrame</code>.</p>`,
+  links: [['J3.2', 'roda os passos de física'], ['J4.2', 'anima os estados'], ['J7', 'volume do chiado'], ['J2.8', 'atualiza o visual'], ['J6.1', 'atualiza o HUD'], ['J2.1', 'desenha a cena'], ['B2', 'requestAnimationFrame'], ['H7', 'congela com o manual']] },
+
+// ---------------------------------------------------------------- bastidores
+{ id: 'B1', lang: 'ext', name: 'three.js r128', tl: 'biblioteca de 3D · vendor/three.min.js · 603 kB', lines: 'vendor/three.min.js · licença MIT', code: ['THREE'],
+  what: 'A biblioteca que transforma objetos 3D (formas, materiais, luzes, câmera) em pixels no canvas.',
+  how: `<p>Sem ela, desenhar com WebGL exigiria escrever à mão os programas da placa de vídeo, os buffers de vértices e as matrizes de projeção. O three.js oferece peças prontas:</p>
+<ul>
+<li><code>Mesh</code>: uma forma com um material;</li>
+<li><code>Group</code>: um conjunto de peças que se movem juntas;</li>
+<li><code>MeshStandardMaterial</code>: material com rugosidade e metalicidade, iluminado de forma fisicamente plausível;</li>
+<li><code>Points</code>: nuvens de pontos, usadas nas estrelas e nas partículas;</li>
+<li><code>PerspectiveCamera</code> e as luzes.</li>
+</ul>
+<p>A cada <code>render</code>, ela percorre a cena, calcula onde cada triângulo cai na tela e manda tudo para a GPU. O jogo usa o three.js só para desenhar. A física é toda própria.</p>
+<p>A biblioteca fica numa pasta local em vez de vir de um servidor externo, para o jogo funcionar igual no GitHub Pages e offline.</p>`,
+  links: [['H8', 'carregada por uma tag script'], ['J2.1', 'usada pelo renderizador'], ['B2', 'fala com o WebGL do navegador']] },
+
+{ id: 'B2', lang: 'ext', name: 'APIs do navegador', tl: 'DOM, WebGL, Web Audio, ponteiro, localStorage', lines: 'embutido em todo navegador moderno', code: ['DOM', 'WebGL', 'Web Audio', 'Pointer Events', 'localStorage'],
+  what: 'Serviços que o próprio navegador oferece e que o jogo usa diretamente, sem instalar nada.',
+  how: `<ul>
+<li><b>DOM</b>: a árvore de elementos HTML que o JavaScript lê e altera (J6.1).</li>
+<li><b>WebGL</b>: acesso à placa de vídeo, usado através do three.js (B1).</li>
+<li><b>Web Audio</b>: síntese e mixagem de som em tempo real (J7).</li>
+<li><b>Pointer Events</b>: mouse, toque e caneta num formato só (J5.2).</li>
+<li><b>requestAnimationFrame</b>: chama uma função no ritmo da tela (J8).</li>
+<li><b>localStorage</b>: guarda pequenos textos por site, como a escolha de asteroides (J6.2).</li>
+<li><b>matchMedia</b>: consulta preferências do sistema, como "reduzir movimento", usada na rolagem do manual.</li>
+</ul>`,
+  links: [['J8', 'requestAnimationFrame'], ['J7', 'Web Audio'], ['J5.2', 'Pointer Events'], ['J6.2', 'localStorage'], ['B1', 'WebGL']] },
+
+{ id: 'B3', lang: 'ext', name: 'Ferramentas Python', tl: 'geram o manual e a versão offline', lines: 'tools/physics_manual.py · tools/build_offline.py', code: ['physics_manual.py', 'build_offline.py'],
+  what: 'Dois scripts que não rodam no jogo, mas produzem partes dele.',
+  how: `<p><code>physics_manual.py</code> gera o HTML do manual de física (equações, diagramas SVG e índice) num arquivo <code>physics.html</code>, que depois é colado no <code>index.html</code> no lugar da <code>&lt;section id="physics"&gt;</code>. Escrever o manual em Python facilita gerar os diagramas com coordenadas calculadas, por funções como <code>arrow()</code>, <code>mod()</code> e <code>rock()</code>.</p>
+<p><code>build_offline.py</code> lê o <code>index.html</code>, troca <code>&lt;script src="vendor/three.min.js"&gt;</code> pelo conteúdo inteiro da biblioteca e grava <code>acoplamento-iss-offline.html</code> (737 kB). Esse arquivo abre com duplo clique, sem servidor. Só as fontes ainda vêm da internet; sem conexão, entram as de reserva.</p>`,
+  links: [['H7', 'gera o manual'], ['H8', 'embute o three.js nessa tag'], ['B1', 'lê a biblioteca']] },
+];
+
+// ======================================================== percurso de um quadro (60 Hz, D pressionado)
+const TRACE = [
+  { n: ['J8', 'B2'], h: 'A tela vai se atualizar', p: 'O navegador chama frame(agora), como pedido no quadro anterior por requestAnimationFrame.' },
+  { n: ['J8'], h: 'Quanto tempo passou?', p: 'dt = 16,7 ms. Somado à sobra do quadro anterior, o acumulador comporta dois passos de 8,33 ms.' },
+  { n: ['J5.1', 'J5.2', 'J5.3', 'J5.4'], h: 'Quais jatos estão ligados?', p: 'activeJets() junta teclado, botões e ponteiro. Resultado: {right}, porque o D está apertado.' },
+  { n: ['J3.2', 'J3.3', 'J1.1'], h: 'Passo 1: empuxo', p: 'No referencial do módulo, fx = −1. Girado por θ para o mundo, soma 0,42 × 1/120 m/s à velocidade.' },
+  { n: ['J3.6'], h: 'Passo 1: asteroides', p: 'As rochas avançam em linha reta. Se duas se sobrepõem, trocam impulso ao longo da linha dos centros.' },
+  { n: ['J3.2', 'J4.1', 'J3.4', 'J3.5'], h: 'Passo 1: posição e colisões', p: 'x += v·h. Depois: a sonda chegou ao porto? O casco tocou a estação ou uma rocha? Aqui, nada encostou.' },
+  { n: ['J3.2', 'J3.6'], h: 'Passo 2: tudo de novo', p: 'O mesmo cálculo para os 8,33 ms seguintes. O acumulador volta a quase zero.' },
+  { n: ['J4.2', 'J7'], h: 'Estado e som', p: 'O estado continua play. O ganho do chiado vai para 0,06, porque há um jato ligado.' },
+  { n: ['J2.8', 'J2.5', 'J2.6'], h: 'Copiar para o 3D', p: 'O grupo do módulo recebe x, y e θ. A pluma do lado direito acende, cerca de 2 partículas de gás nascem em cada bico e a linha prevista é redesenhada.' },
+  { n: ['J6.1', 'H3', 'C3', 'C1'], h: 'Atualizar o HUD', p: 'O JS escreve os números nas tags do HTML e liga a classe ok onde cabe. O CSS pinta de verde ou vermelho.' },
+  { n: ['J2.1', 'B1', 'H2'], h: 'Desenhar', p: 'renderer.render() percorre a cena; o three.js manda os triângulos para a GPU, que pinta o canvas.' },
+  { n: ['J8'], h: 'Pedir o próximo quadro', p: 'requestAnimationFrame(frame). Daqui a 16,7 ms, tudo recomeça.' },
+];
+
+const VOCAB = [
+  ['DOM', 'A árvore de elementos que o navegador monta a partir do HTML. O JavaScript lê e altera essa árvore, e a tela acompanha.'],
+  ['Evento', 'Um aviso do navegador de que algo aconteceu: tecla apertada, clique, janela redimensionada. O código "escuta" eventos com addEventListener.'],
+  ['Canvas', 'Um elemento HTML que é só uma grade de pixels. O que aparece nele é desenhado por código.'],
+  ['WebGL', 'A interface do navegador para usar a placa de vídeo (GPU). Desenha milhões de triângulos por segundo.'],
+  ['Shader', 'Um programa pequeno que roda na GPU para cada vértice ou pixel. A atmosfera da Terra usa um próprio.'],
+  ['Quadro (frame)', 'Uma imagem completa da tela. A 60 Hz, são 60 por segundo, um a cada 16,7 ms.'],
+  ['Classe CSS', 'Um rótulo num elemento (class="ok"). O CSS aplica estilos a quem tem o rótulo; o JS liga e desliga rótulos.'],
+  ['Atributo data-*', 'Um campo livre num elemento HTML (data-jet="right") para guardar informação que o JavaScript lê.'],
+  ['Set', 'Uma coleção sem repetidos. Adicionar algo que já está lá não tem efeito.'],
+  ['Float32Array', 'Uma lista de números de tamanho fixo, guardada de forma compacta. Rápida de percorrer e de mandar para a GPU.'],
+  ['Referencial', 'O sistema de eixos em que se medem posições. Aqui: o do módulo (gira com ele) e o do mundo (fixo na estação).'],
+  ['Impulso', 'Força vezes tempo de contato. Numa colisão rápida, é o que muda a velocidade de uma vez: Δv = J/m.'],
+  ['Restituição (e)', 'Quanto da velocidade de aproximação volta como velocidade de afastamento após um choque. 0 gruda, 1 quica sem perda.'],
+  ['Momento de inércia', 'A "massa" da rotação: quanto um corpo resiste a mudar de giro. Depende de como a massa se distribui.'],
+];
+
+// ======================================================== figuras
+const FIGS = {
+  layers() {
+    const L = [
+      ['canvas #c · a cena 3D', false],
+      ['painéis .hud · pointer-events: none', true],
+      ['#pad e #tools · pointer-events: auto', false],
+      ['#overlay · cartão de início e fim', false],
+      ['#physics · manual, z-index: 20', false],
+    ];
+    let s = '';
+    L.forEach(([lbl, dash], i) => {
+      const y = 186 - i * 34;
+      s += `<polygon points="20,${y} 170,${y} 205,${y - 22} 55,${y - 22}" class="f-sheet ${i === 0 ? 's-ink' : 's-c'}" stroke-width="1.4" ${dash ? 'stroke-dasharray="5 4"' : ''} fill-opacity=".92"/>`;
+      s += `<text x="214" y="${y - 7}" class="${i === 1 ? 't-c' : 't-ink'}">${lbl}</text>`;
+    });
+    s += `<path d="M110 10 L112 170" class="s-sig" stroke-width="2" marker-end="url(#mSig)"/><text x="118" y="22" class="t-sig">clique</text>`;
+    return { svg: `<svg viewBox="0 0 420 200" role="img" aria-label="Pilha de camadas">${defs()}${s}</svg>`, cap: 'O clique atravessa a camada tracejada do HUD e chega ao canvas. As camadas de cima só aparecem quando estão sem o atributo hidden.' };
+  },
+  frames() {
+    const a = 25 * Math.PI / 180, ex = 190 + 60 * Math.cos(a), ey = 100 - 60 * Math.sin(a);
+    const s = `
+      <path d="M30 180 H340" class="s-dim" stroke-width="1.3" marker-end="url(#mDim)"/><path d="M30 180 V18" class="s-dim" stroke-width="1.3" marker-end="url(#mDim)"/>
+      <text x="300" y="196">x (mundo)</text><text x="36" y="24">y (mundo)</text>
+      <path d="M30 180 L190 100" class="s-dim" stroke-dasharray="4 4"/><text x="88" y="128">(x, y)</text>
+      <path d="M190 100 H310" class="s-dim" stroke-dasharray="3 4"/>
+      <g transform="translate(190 100) rotate(-25)">
+        <rect x="-72" y="-20" width="144" height="40" rx="6" class="f-sheet s-ink" stroke-width="1.4"/>
+        <path d="M72 0 H86" class="s-ink" stroke-width="2"/><circle cx="88" cy="0" r="3" class="f-sig"/>
+        <path d="M0 0 H120" class="s-c" stroke-width="2" marker-end="url(#mC)"/>
+        <path d="M0 0 V-74" class="s-c" stroke-width="2" marker-end="url(#mC)"/>
+        <text x="96" y="-8" class="t-c">bx (frente)</text><text x="6" y="-62" class="t-c">by</text>
+      </g>
+      <circle cx="190" cy="100" r="3" class="f-ink"/>
+      <path d="M250 100 A60 60 0 0 0 ${ex.toFixed(1)} ${ey.toFixed(1)}" class="s-sig" stroke-width="1.6"/><text x="256" y="90" class="t-sig">θ</text>`;
+    return { svg: `<svg viewBox="0 0 360 205" role="img" aria-label="Referenciais do módulo e do mundo">${defs()}${s}</svg>`, cap: 'O módulo tem seus próprios eixos, que giram com ele. Um ponto do casco, como a ponta da sonda, tem coordenadas fixas no referencial do módulo e coordenadas que mudam no do mundo.' };
+  },
+  impulse() {
+    const s = `
+      <rect x="40" y="70" width="180" height="50" rx="8" class="f-sheet s-ink" stroke-width="1.4"/>
+      <text x="74" y="112" class="t-ink">módulo · 9 t</text>
+      <circle cx="252" cy="38" r="44" class="f-csoft s-c" stroke-width="1.4"/><text x="262" y="30" class="t-c">rocha</text>
+      <circle cx="130" cy="95" r="3.5" class="f-ink"/><text x="112" y="90">centro</text>
+      <path d="M130 95 L214 71" class="s-ink" stroke-width="1.6" stroke-dasharray="5 3" marker-end="url(#mInk)"/><text x="160" y="76" class="t-ink">r</text>
+      <circle cx="218" cy="70" r="4" class="f-sig"/><text x="224" y="86" class="t-sig">P</text>
+      <path d="M218 70 L186 100" class="s-sig" stroke-width="2.2" marker-end="url(#mSig)"/><text x="160" y="138" class="t-sig">J ao longo de n</text>
+      <path d="M252 38 L228 56" class="s-c" stroke-width="1.6" marker-end="url(#mC)"/>`;
+    return { svg: `<svg viewBox="0 0 330 150" role="img" aria-label="Impulso no ponto de contato">${defs()}${s}</svg>`, cap: 'O impulso J empurra o módulo ao longo da normal n no ponto P. Como a linha de J não passa pelo centro, r×n ≠ 0 e o choque também faz o módulo girar.' };
+  },
+  accum() {
+    const X = t => 70 + t * 5.4;
+    let s = '';
+    [[40, 16.667, '60 Hz'], [102, 6.944, '144 Hz']].forEach(([y, fr, lbl]) => {
+      s += `<text x="8" y="${y + 4}" class="t-ink">${lbl}</text><path d="M${X(0)} ${y} H${X(50)}" class="s-dim" stroke-width="1.2"/>`;
+      for (let t = 0; t <= 50.01; t += fr) s += `<path d="M${X(t).toFixed(1)} ${y} V${y - 16}" class="s-ink" stroke-width="1.6"/>`;
+      for (let k = 1; k * 8.333 <= 50.01; k++) s += `<circle cx="${X(k * 8.333).toFixed(1)}" cy="${y}" r="3.6" class="f-c"/>`;
+    });
+    s += `<text x="${X(0)}" y="134">0</text><text x="${X(50) - 24}" y="134">50 ms</text>
+      <path d="M${X(0)} 66 V60 H${X(16.667)} V66" class="s-dim"/><text x="${X(3)}" y="76">1 quadro = 2 passos</text>
+      <path d="M200 146 h10" class="s-ink" stroke-width="1.6"/><text x="214" y="150">quadro</text><circle cx="270" cy="146" r="3.6" class="f-c"/><text x="278" y="150">passo de física</text>`;
+    return { svg: `<svg viewBox="0 0 360 158" role="img" aria-label="Acumulador de tempo">${s}</svg>`, cap: 'Os passos de física (pontos) caem nos mesmos instantes nas duas telas. O que muda é quantos passos cabem entre um quadro e o seguinte.' };
+  },
+  ring() {
+    let s = '';
+    const N = 24, idx = 7;
+    for (let i = 0; i < N; i++) {
+      const a = -Math.PI / 2 + i / N * Math.PI * 2, x = 90 + Math.cos(a) * 62, y = 88 + Math.sin(a) * 62;
+      const age = (idx - i + N) % N;
+      const alive = age >= 1 && age <= 15;
+      s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7" class="${alive ? 'f-c' : 'f-sheet'} s-dim" ${alive ? `fill-opacity="${(1 - age / 17).toFixed(2)}"` : ''}/>`;
+    }
+    const a = -Math.PI / 2 + idx / N * Math.PI * 2;
+    s += `<path d="M90 88 L${(90 + Math.cos(a) * 48).toFixed(1)} ${(88 + Math.sin(a) * 48).toFixed(1)}" class="s-sig" stroke-width="2" marker-end="url(#mSig)"/><text x="66" y="92" class="t-sig">pIdx</text>
+      <text x="176" y="40" class="t-ink">emit() grava na vaga</text><text x="176" y="54">apontada e avança uma</text>
+      <text x="176" y="82" class="t-ink">mais escuras = mais velhas</text><text x="176" y="96">a cor cai com (vida)²</text>
+      <text x="176" y="124" class="t-ink">vazias ficam em x = 9 999</text><text x="176" y="138">24 vagas desenhadas de 2 400</text>`;
+    return { svg: `<svg viewBox="0 0 360 170" role="img" aria-label="Buffer circular de partículas">${defs()}${s}</svg>`, cap: 'Quando o índice dá a volta completa, a partícula mais antiga dá lugar à nova. Nenhum objeto é criado ou destruído durante o jogo.' };
+  },
+  states() {
+    const B = (x, y, t, hi) => `<rect x="${x}" y="${y}" width="76" height="28" rx="3" class="${hi ? 'f-csoft s-c' : 'f-sheet s-ink'}" stroke-width="1.4"/><text x="${x + 38}" y="${y + 18}" text-anchor="middle" class="t-ink">${t}</text>`;
+    const s = `${B(6, 58, 'intro')}${B(112, 58, 'play', true)}${B(232, 14, 'docking')}${B(336, 14, 'docked')}${B(232, 104, 'crash')}${B(336, 104, 'over')}
+      <path d="M82 72 H108" class="s-ink" marker-end="url(#mInk)"/><text x="72" y="52">Iniciar</text>
+      <path d="M188 64 L228 32" class="s-ink" marker-end="url(#mInk)"/><text x="160" y="22">5 critérios ok</text>
+      <path d="M308 28 H332" class="s-ink" marker-end="url(#mInk)"/><text x="306" y="56">1,4 s</text>
+      <path d="M188 80 L228 112" class="s-ink" marker-end="url(#mInk)"/><text x="150" y="124">impacto</text>
+      <path d="M308 118 H332" class="s-ink" marker-end="url(#mInk)"/><text x="306" y="98">1,6 s</text>
+      <path d="M150 86 C150 156 374 160 374 136" class="s-ink" stroke-dasharray="4 3" marker-end="url(#mInk)"/><text x="196" y="160">saiu da área</text>`;
+    return { svg: `<svg viewBox="0 0 420 168" role="img" aria-label="Máquina de estados">${defs()}${s}</svg>`, cap: 'Só no estado play a física roda. De docked e over, "Nova tentativa" volta para play.' };
+  },
+};
+function defs() {
+  const m = (id, cls) => `<marker id="${id}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="${cls}"/></marker>`;
+  return `<defs>${m('mSig', 'f-sig')}${m('mC', 'f-c')}${m('mInk', 'f-ink')}${m('mDim', 'f-dim')}</defs>`;
+}
+
+// ======================================================== demo do fbm (mesmo algoritmo do jogo)
+function hash(x, y, s) { let h = Math.imul(x, 374761393) ^ Math.imul(y, 668265263) ^ Math.imul(s, 2147483647); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967295; }
+function vnoise(x, y, per, s) {
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  const x0 = ((xi % per) + per) % per, x1 = (x0 + 1) % per;
+  const a = hash(x0, yi, s), b = hash(x1, yi, s), c = hash(x0, yi + 1, s), d = hash(x1, yi + 1, s);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+function fbm(x, y, per, s, oct) { let sum = 0, amp = 0.5, f = 1; for (let o = 0; o < oct; o++) { sum += amp * vnoise(x * f, y * f, per * f, s + o); amp *= 0.5; f *= 2; } return sum; }
+function drawEarth(cv, oct, color) {
+  const EW = cv.width, EH = cv.height, PER = 6, ctx = cv.getContext('2d');
+  const img = ctx.createImageData(EW, EH), d = img.data;
+  for (let py = 0; py < EH; py++) {
+    const lat = Math.abs(py / EH - 0.5) * 2;
+    for (let px = 0; px < EW; px++) {
+      const n = fbm(px / EW * PER, py / EH * PER / 2, PER, 7, oct);
+      const i = (py * EW + px) * 4;
+      let r, g, b;
+      if (!color) { r = g = b = Math.max(0, Math.min(255, n * 290)); }
+      else if (lat > 0.86 || (lat > 0.78 && n > 0.45)) { r = 230; g = 238; b = 245; }
+      else if (n > 0.6) {
+        const k = (n - 0.6) * 4, dry = fbm(px / EW * PER * 2, py / EH * PER, PER * 2, 31, Math.min(3, oct));
+        if (dry > 0.55 && lat < 0.5) { r = 170 + k * 40; g = 140 + k * 20; b = 95; }
+        else { r = 52 + k * 60; g = 92 + k * 40; b = 48 + k * 10; }
+      } else { const k = Math.max(0, n - 0.38) * 3.5; r = 8 + k * 20; g = 38 + k * 60; b = 92 + k * 70; }
+      d[i] = r; d[i + 1] = g; d[i + 2] = b; d[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+}
+function demoFbm() {
+  return `<figure class="fx demo"><canvas id="fbmCv" width="384" height="192" aria-label="Textura da Terra gerada por ruído"></canvas>
+    <div class="demo-ctl"><label for="fbmOct">Oitavas</label><input type="range" id="fbmOct" min="1" max="5" step="1" value="5"><output id="fbmOut" for="fbmOct">5</output>
+    <label><input type="checkbox" id="fbmCol" checked> pintar como a Terra</label></div>
+    <figcaption>Este é o mesmo código do jogo, rodando aqui, em metade da resolução. Com 1 oitava, só manchas grandes. Cada oitava a mais acrescenta detalhes com o dobro da finura. Desmarque a caixa para ver o ruído cru, antes dos limiares.</figcaption></figure>`;
+}
+function wireFbm() {
+  const cv = document.getElementById('fbmCv'); if (!cv) return;
+  const o = document.getElementById('fbmOct'), out = document.getElementById('fbmOut'), col = document.getElementById('fbmCol');
+  const run = () => { out.textContent = o.value; drawEarth(cv, +o.value, col.checked); };
+  o.addEventListener('input', run); col.addEventListener('change', run); run();
+}
+
+
+// ======================================================== nós extras: raiz e grupos do JS
+const $ = id => document.getElementById(id);
+const NS = 'http://www.w3.org/2000/svg';
+const byId = {}; NODES.forEach(n => byId[n.id] = n); Object.values(BIG).forEach(b => byId[b.id] = b);
+const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const narrow = () => window.matchMedia('(max-width: 760px)').matches;
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+byId.root = {
+  id: 'root', lang: 'root', name: 'index.html', tl: '134 kB · 1 357 linhas', lines: 'o arquivo inteiro do jogo', code: ['index.html'],
+  what: 'O jogo inteiro mora neste arquivo, com as três linguagens juntas: HTML, CSS e JavaScript. Ele depende só de uma biblioteca, o three.js, que fica numa pasta vizinha.',
+  how: `<p>O navegador lê o arquivo de cima para baixo. Primeiro o cabeçalho e o CSS, depois os elementos da página e, no fim, os dois scripts. Quando o último script termina de rodar, a cena está montada e o laço principal (J8) já está girando.</p>
+<p>Onde estão os 134 kB:</p>
+<div class="bar">
+  <div class="l-html" style="flex: 5.3">HTML</div>
+  <div class="l-html hatch" style="flex: 59.8">manual · 60 kB</div>
+  <div class="l-css" style="flex: 17">CSS</div>
+  <div class="l-js" style="flex: 51.8">JS · 52 kB</div>
+</div>
+<p style="font-size:13px;color:var(--dim)">O hachurado é o HTML do manual de física (H7): quase metade do arquivo.</p>
+<table class="stamp">
+  <tr><td>Arquivo</td><td>index.html</td></tr>
+  <tr><td>Biblioteca</td><td>three.js r128 · 603 kB</td></tr>
+  <tr><td>Versão offline</td><td>acoplamento-iss-offline.html · 737 kB</td></tr>
+  <tr><td>Blocos</td><td>${NODES.length} neste mapa</td></tr>
+</table>`
+};
+const GINFO = {
+  gJ1: { what: 'Os números e as formas que o resto do código usa: limites, massas, geometria de colisão e o mapa de teclas.', how: '<p>Nada aqui se move ou calcula durante o jogo. São valores definidos uma vez, no topo do script, para que ajustar a física não exija procurar números espalhados pelo código.</p>' },
+  gJ2: { what: 'Tudo o que é desenhado: renderizador, câmera, fundo, estação, módulo, partículas, rochas e a cópia do estado da física para a cena.', how: '<p>Quase todo este grupo roda uma vez só, ao carregar, montando objetos do three.js. A exceção é a sincronização visual (J2.8), que roda a cada quadro e é a única ponte entre a física e o desenho. A física nunca lê nada deste grupo.</p>' },
+  gJ3: { what: 'A simulação newtoniana: estado do módulo, integração no tempo, conversão de referenciais, colisões e asteroides.', how: '<p>Roda em passos fixos de 1/120 s, chamados pelo laço principal (J8). Escreve no objeto <code>S</code> e na lista <code>AST</code>. Todos os outros grupos só leem esse estado.</p>' },
+  gJ4: { what: 'O que transforma a simulação num jogo: critérios de acoplamento, fases da partida e pontuação.', how: '<p>As regras leem o estado da física e decidem o que ele significa: acoplou, quicou, foi destruído ou saiu da área.</p>' },
+  gJ5: { what: 'Teclado, mouse, toque e botões da tela, reduzidos a uma única lista de jatos ligados.', how: '<p>Os eventos do navegador só anotam o que está pressionado. Quem consulta as anotações é o passo de física, no seu próprio ritmo.</p>' },
+  gJ6: { what: 'O HUD e os controles da partida: o caminho do JavaScript até o HTML e o CSS.', how: '<p>O JS escreve textos e liga classes nos elementos do HTML; o CSS decide a aparência. Nenhuma cor é escolhida aqui.</p>' },
+};
+
+// ======================================================== árvore
+const T = {};
+function add(id, parent) { T[id] = { id, parent: parent || null, kids: [], open: false, off: { x: 0, y: 0 }, d: 0, lx: 0, ly: 0 }; if (parent) T[parent].kids.push(id); }
+add('root');
+add('html', 'root'); NODES.filter(n => n.id[0] === 'H').forEach(n => add(n.id, 'html'));
+add('css', 'root'); NODES.filter(n => n.id[0] === 'C').forEach(n => add(n.id, 'css'));
+add('js', 'root');
+for (const g of GROUPS) {
+  const items = NODES.filter(n => n.grp === g.id);
+  if (items.length === 1 && items[0].id === g.id) { add(g.id, 'js'); continue; }
+  const gid = 'g' + g.id;
+  byId[gid] = { id: gid, lang: 'js', name: g.name, tag: g.id, tl: `${items.length} blocos`, lines: 'grupo do JavaScript', isGroup: true, what: GINFO[gid].what, how: GINFO[gid].how };
+  add(gid, 'js'); items.forEach(n => add(n.id, gid));
+}
+add('ext', 'root'); NODES.filter(n => n.id[0] === 'B').forEach(n => add(n.id, 'ext'));
+T.root.open = true;
+
+const ORDER = [];
+['H', 'C'].forEach(p => NODES.filter(n => n.id[0] === p).forEach(n => ORDER.push(n.id)));
+GROUPS.forEach(g => NODES.filter(n => n.grp === g.id).forEach(n => ORDER.push(n.id)));
+NODES.filter(n => n.id[0] === 'B').forEach(n => ORDER.push(n.id));
+
+function labelOf(id) {
+  const n = byId[id];
+  if (id === 'root') return '';
+  if (BIG[id]) return { html: 'HTML', css: 'CSS', js: 'JS', ext: 'EXT' }[id];
+  if (n.isGroup) return n.tag;
+  return n.id;
+}
+const isBig = id => id === 'root' || !!BIG[id] || !!byId[id].isGroup;
+
+// ======================================================== layout em árvore, da esquerda para a direita
+const COLX = [0, 210, 490, 810], W = [160, 230, 280, 270], NH = 50, ROW = 62, GAP = 16;
+function layout() {
+  let cur = 0; const vis = [];
+  (function place(id, d) {
+    const n = T[id]; n.d = d; n.lx = COLX[d]; vis.push(id);
+    if (n.open && n.kids.length) {
+      const ys = n.kids.map(k => place(k, d + 1));
+      n.ly = (ys[0] + ys[ys.length - 1]) / 2; cur += GAP;
+    } else { n.ly = cur; cur += ROW; }
+    return n.ly;
+  })('root', 0);
+  const tgt = {};
+  for (const id of vis) {
+    let ox = 0, oy = 0, p = id;
+    while (p) { ox += T[p].off.x; oy += T[p].off.y; p = T[p].parent; }
+    tgt[id] = { x: T[id].lx + ox, y: T[id].ly + oy };
+  }
+  return { vis, tgt };
+}
+
+// ======================================================== desenho dos nós
+const vp = $('vp'), nodesL = $('nodes'), edgesL = $('edges'), linksL = $('links'), dotEl = $('dot'), svg = $('map'), box = $('mapbox'), panel = $('panel');
+const els = {}; let cur = {}, TG = {}, VIS = new Set();
+function mk(tag, attrs) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
+function fitText(t, full, avail) {
+  t.textContent = full;
+  if (t.getComputedTextLength() <= avail) return;
+  let s = full;
+  while (s.length > 3 && t.getComputedTextLength() > avail) { s = s.slice(0, -2).trimEnd(); t.textContent = s + '…'; }
+}
+function createNode(id) {
+  const n = byId[id], d = T[id].d, w = W[d], lbl = labelOf(id), hasKids = T[id].kids.length > 0;
+  const g = mk('g', { class: `node l-${n.lang}${isBig(id) ? ' big' : ''}`, tabindex: '0', role: 'button', 'data-id': id });
+  g.setAttribute('aria-label', `${lbl ? lbl + ' ' : ''}${n.name}${hasKids ? ', abre ' + T[id].kids.length + ' blocos' : ''}`);
+  const fade = mk('g', {}); g.appendChild(fade);
+  const title = mk('title', {}); title.textContent = `${n.name}: ${BIG[id] ? n.sub : n.tl}`; fade.appendChild(title);
+  fade.appendChild(mk('rect', { class: 'ring', x: -5, y: -NH / 2 - 5, width: w + 10, height: NH + 10, rx: 6 }));
+  fade.appendChild(mk('rect', { class: 'box', x: 0, y: -NH / 2, width: w, height: NH, rx: 3 }));
+  let nx = 11;
+  if (lbl) { const t = mk('text', { class: 'nid', x: 11, y: -3 }); t.textContent = lbl; fade.appendChild(t); nx = 11 + lbl.length * 6.9 + 8; }
+  const nm = mk('text', { class: 'nnm', x: nx, y: -3 }); fade.appendChild(nm);
+  const tl = mk('text', { class: 'ntl', x: 11, y: 15 }); fade.appendChild(tl);
+  let badge = null;
+  if (hasKids) { badge = mk('text', { class: 'nbadge', x: w - 10, y: -3, 'text-anchor': 'end' }); fade.appendChild(badge); }
+  nodesL.appendChild(g);
+  const full = { nm: n.name, tl: BIG[id] ? n.sub : n.tl, nx, w, badge: !!badge };
+  const e = { g, fade, nm, tl, badge, full, edge: null, removing: false };
+  if (T[id].parent) { e.edge = mk('path', { class: 'edge' }); edgesL.appendChild(e.edge); }
+  els[id] = e; fitNode(id);
+}
+function fitNode(id) {
+  const e = els[id]; if (!e) return;
+  fitText(e.nm, e.full.nm, e.full.w - e.full.nx - (e.full.badge ? 34 : 10));
+  fitText(e.tl, e.full.tl, e.full.w - 22);
+}
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => Object.keys(els).forEach(fitNode));
+
+function draw() {
+  for (const id in els) {
+    const c = cur[id]; if (!c) continue;
+    const e = els[id];
+    e.g.setAttribute('transform', `translate(${c.x.toFixed(1)},${c.y.toFixed(1)})`);
+    e.fade.style.opacity = c.o;
+    if (e.edge) {
+      const pid = T[id].parent, p = cur[pid];
+      if (p) {
+        const x1 = p.x + W[T[pid].d], y1 = p.y, x2 = c.x, y2 = c.y, mx = (x1 + x2) / 2;
+        e.edge.setAttribute('d', `M${x1.toFixed(1)} ${y1.toFixed(1)} C${mx.toFixed(1)} ${y1.toFixed(1)} ${mx.toFixed(1)} ${y2.toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}`);
+        e.edge.style.opacity = c.o;
+      }
+    }
+  }
+  drawLinks();
+}
+
+// fios tracejados entre o bloco escolhido e os blocos com que ele conversa
+function linkPath(a, b) {
+  const A = cur[a], B = cur[b], wa = W[T[a].d], wb = W[T[b].d];
+  let x1, y1, x2, y2, c;
+  if (B.x > A.x + wa) { x1 = A.x + wa; y1 = A.y; x2 = B.x; y2 = B.y; const k = Math.max(40, (x2 - x1) / 2); c = `C${x1 + k} ${y1} ${x2 - k} ${y2}`; }
+  else if (B.x + wb < A.x) { x1 = A.x; y1 = A.y; x2 = B.x + wb; y2 = B.y; const k = Math.max(40, (x1 - x2) / 2); c = `C${x1 - k} ${y1} ${x2 + k} ${y2}`; }
+  else { x1 = A.x + wa; y1 = A.y; x2 = B.x + wb; y2 = B.y; const k = 46 + Math.min(140, Math.abs(y2 - y1) / 4); c = `C${x1 + k} ${y1} ${x2 + k} ${y2}`; }
+  return `M${x1.toFixed(1)} ${y1.toFixed(1)} ${c} ${x2.toFixed(1)} ${y2.toFixed(1)}`;
+}
+function drawLinks() {
+  let s = '';
+  if (sel && cur[sel] && byId[sel].links) {
+    for (const [t] of byId[sel].links) {
+      if (!els[t] || els[t].removing || !cur[t]) continue;
+      s += `<path class="link" d="${linkPath(sel, t)}" marker-end="url(#mLink)" style="opacity:${Math.min(cur[t].o, cur[sel].o)}"/>`;
+    }
+  }
+  linksL.innerHTML = s;
+}
+
+// ======================================================== animação de reorganização
+let tween = null;
+function relayout(anim, done) {
+  const L = layout(); VIS = new Set(L.vis); TG = L.tgt;
+  for (const id of L.vis) if (!els[id]) {
+    createNode(id);
+    const p = T[id].parent, s = p && cur[p] ? cur[p] : TG[id];
+    cur[id] = { x: s.x, y: s.y, o: 0 };
+  }
+  const targets = {};
+  for (const id in els) {
+    if (VIS.has(id)) { els[id].removing = false; targets[id] = { x: TG[id].x, y: TG[id].y, o: 1 }; }
+    else { els[id].removing = true; let a = T[id].parent; while (a && !VIS.has(a)) a = T[a].parent; targets[id] = { x: TG[a].x, y: TG[a].y, o: 0 }; }
+  }
+  for (const id of L.vis) if (els[id].badge) els[id].badge.textContent = T[id].open ? '−' : '+' + T[id].kids.length;
+  updateClasses();
+  if (tween) { cancelAnimationFrame(tween); tween = null; }
+  if (anim === false || reduce) { for (const id in targets) cur[id] = targets[id]; finish(); draw(); if (done) done(); return; }
+  const from = {}; for (const id in targets) from[id] = { ...cur[id] };
+  const t0 = performance.now(), D = 380;
+  const stepF = now => {
+    const k = Math.min(1, (now - t0) / D), e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    for (const id in targets) { const a = from[id], b = targets[id]; cur[id] = { x: a.x + (b.x - a.x) * e, y: a.y + (b.y - a.y) * e, o: a.o + (b.o - a.o) * e }; }
+    draw();
+    if (k < 1) tween = requestAnimationFrame(stepF); else { tween = null; finish(); draw(); if (done) done(); }
+  };
+  tween = requestAnimationFrame(stepF);
+}
+function finish() {
+  for (const id in els) if (els[id].removing) { els[id].g.remove(); if (els[id].edge) els[id].edge.remove(); delete els[id]; delete cur[id]; }
+}
+
+// ======================================================== câmera do mapa: pan e zoom
+const view = { k: 1, x: 40, y: 200 };
+let viewTween = null;
+function applyView() { vp.setAttribute('transform', `translate(${view.x.toFixed(1)},${view.y.toFixed(1)}) scale(${view.k.toFixed(4)})`); }
+function tweenView(to) {
+  if (viewTween) cancelAnimationFrame(viewTween);
+  if (reduce) { Object.assign(view, to); applyView(); return; }
+  const from = { ...view }, t0 = performance.now(), D = 450;
+  const f = now => {
+    const k = Math.min(1, (now - t0) / D), e = 1 - Math.pow(1 - k, 3);
+    view.k = from.k + (to.k - from.k) * e; view.x = from.x + (to.x - from.x) * e; view.y = from.y + (to.y - from.y) * e;
+    applyView(); viewTween = k < 1 ? requestAnimationFrame(f) : null;
+  };
+  viewTween = requestAnimationFrame(f);
+}
+function area() {
+  const r = svg.getBoundingClientRect();
+  const A = { left: 16, top: 56, right: r.width - 16, bottom: r.height - 34 };
+  if (!$('trace').hidden) A.top += $('trace').offsetHeight + 8;
+  if (box.classList.contains('panel-open') && !narrow()) A.right = r.width - panel.offsetWidth - 16;
+  else if (!$('tabBtn').hidden && !narrow()) A.top = Math.max(A.top, 56);
+  return A;
+}
+function bboxOf(ids) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const id of ids) { const p = TG[id]; if (!p || !VIS.has(id)) continue; x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x + W[T[id].d]); y0 = Math.min(y0, p.y - NH / 2); y1 = Math.max(y1, p.y + NH / 2); }
+  return x0 === Infinity ? null : { x0, y0, w: x1 - x0, h: y1 - y0 };
+}
+function frame(ids, opts = {}) {
+  const b = bboxOf(ids); if (!b) return;
+  const A = area(), aw = Math.max(80, A.right - A.left), ah = Math.max(80, A.bottom - A.top);
+  if (opts.onlyIfNeeded) {
+    const sx0 = b.x0 * view.k + view.x, sy0 = b.y0 * view.k + view.y, sx1 = sx0 + b.w * view.k, sy1 = sy0 + b.h * view.k;
+    if (sx0 >= A.left && sy0 >= A.top && sx1 <= A.right && sy1 <= A.bottom) return;
+  }
+  let k = opts.k != null ? opts.k : view.k;
+  const fitK = Math.min(aw / b.w, ah / b.h);
+  if (opts.fit) k = Math.min(opts.maxK || 1.1, fitK); else if (b.w * k > aw || b.h * k > ah) k = fitK;
+  k = Math.max(0.25, Math.min(2.2, k));
+  const to = { k, x: A.left + (aw - b.w * k) / 2 - b.x0 * k, y: A.top + (ah - b.h * k) / 2 - b.y0 * k };
+  if (opts.instant) { if (viewTween) cancelAnimationFrame(viewTween); Object.assign(view, to); applyView(); } else tweenView(to);
+}
+function zoomAt(sx, sy, k) {
+  k = Math.max(0.25, Math.min(2.2, k));
+  const wx = (sx - view.x) / view.k, wy = (sy - view.y) / view.k;
+  view.k = k; view.x = sx - wx * k; view.y = sy - wy * k; applyView();
+}
+const local = e => { const r = svg.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+
+const ptrs = new Map(); let drag = null, pinch = null;
+svg.addEventListener('pointerdown', e => {
+  if (viewTween) { cancelAnimationFrame(viewTween); viewTween = null; }
+  const nodeEl = e.target.closest('.node');
+  const p = local(e);
+  if (nodeEl && ptrs.size === 0) {
+    drag = { id: nodeEl.dataset.id, pid: e.pointerId, sx: p.x, sy: p.y, lx: p.x, ly: p.y, moved: false };
+    svg.setPointerCapture(e.pointerId); return;
+  }
+  drag = null;
+  ptrs.set(e.pointerId, p); svg.setPointerCapture(e.pointerId); svg.classList.add('panning');
+  if (ptrs.size === 2) {
+    const [a, b] = [...ptrs.values()];
+    pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), k: view.k, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, vx: view.x, vy: view.y };
+  }
+});
+svg.addEventListener('pointermove', e => {
+  const p = local(e);
+  if (drag && drag.pid === e.pointerId) {
+    if (!drag.moved && Math.hypot(p.x - drag.sx, p.y - drag.sy) > 5) drag.moved = true;
+    if (drag.moved && !tween) {
+      const n = T[drag.id]; n.off.x += (p.x - drag.lx) / view.k; n.off.y += (p.y - drag.ly) / view.k;
+      const L = layout(); TG = L.tgt; for (const id of L.vis) if (cur[id]) { cur[id].x = TG[id].x; cur[id].y = TG[id].y; }
+      draw();
+    }
+    drag.lx = p.x; drag.ly = p.y; return;
+  }
+  if (!ptrs.has(e.pointerId)) return;
+  const prev = ptrs.get(e.pointerId); ptrs.set(e.pointerId, p);
+  if (ptrs.size === 1) { view.x += p.x - prev.x; view.y += p.y - prev.y; applyView(); }
+  else if (ptrs.size === 2 && pinch) {
+    const [a, b] = [...ptrs.values()];
+    const d = Math.hypot(a.x - b.x, a.y - b.y), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    const k = Math.max(0.25, Math.min(2.2, pinch.k * d / pinch.d));
+    const wx = (pinch.mx - pinch.vx) / pinch.k, wy = (pinch.my - pinch.vy) / pinch.k;
+    view.k = k; view.x = mx - wx * k; view.y = my - wy * k; applyView();
+  }
+});
+function endPtr(e) {
+  if (drag && drag.pid === e.pointerId) { const d = drag; drag = null; if (!d.moved && e.type === 'pointerup') activate(d.id); return; }
+  ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null;
+  if (ptrs.size === 0) svg.classList.remove('panning');
+}
+svg.addEventListener('pointerup', endPtr); svg.addEventListener('pointercancel', endPtr);
+svg.addEventListener('wheel', e => {
+  e.preventDefault();
+  const p = local(e);
+  const mouseWheel = e.deltaMode === 1 || (e.deltaX === 0 && Math.abs(e.deltaY) >= 50 && Number.isInteger(e.deltaY));
+  if (e.ctrlKey || mouseWheel) zoomAt(p.x, p.y, view.k * Math.exp(-e.deltaY * (e.ctrlKey ? 0.012 : 0.0018)));
+  else { view.x -= e.deltaX; view.y -= e.deltaY; applyView(); }
+}, { passive: false });
+svg.addEventListener('keydown', e => {
+  const n = e.target.closest && e.target.closest('.node'); if (!n) return;
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(n.dataset.id); }
+});
+
+// ======================================================== seleção
+let sel = null, lit = new Set();
+function openAnc(id) { let p = T[id].parent; while (p) { T[p].open = true; p = T[p].parent; } }
+function ancestors(id) { const a = new Set(); let p = id && T[id].parent; while (p) { a.add(p); p = T[p].parent; } return a; }
+function updateClasses() {
+  const linked = new Set((sel && byId[sel].links || []).map(l => l[0]));
+  const anc = ancestors(sel), kids = new Set(sel && T[sel].open ? T[sel].kids : []);
+  for (const id in els) {
+    const c = els[id].g.classList;
+    c.toggle('sel', id === sel); c.toggle('linked', linked.has(id)); c.toggle('anc', anc.has(id)); c.toggle('kid', kids.has(id)); c.toggle('lit', lit.has(id));
+  }
+  svg.classList.toggle('has-sel', !!sel && sel !== 'root' && !tracing);
+  svg.classList.toggle('tracing', tracing);
+}
+function activate(id) {
+  const n = T[id];
+  if (n.kids.length) { if (!n.open) n.open = true; else if (sel === id) n.open = false; }
+  select(id);
+}
+function select(id, o = {}) {
+  sel = id;
+  if (id) { openAnc(id); if (o.openLinks !== false) for (const [t] of byId[id].links || []) openAnc(t); }
+  renderPanel(id);
+  if (id && (o.showPanel !== false)) setPanel(true);
+  relayout(true, () => {
+    if (o.after) return o.after();
+    if (!id) return;
+    const ids = [id, ...(T[id].open ? T[id].kids : []), ...((byId[id].links || []).map(l => l[0]))];
+    frame(ids, { onlyIfNeeded: true });
+  });
+}
+function setPanel(open) {
+  box.classList.toggle('panel-open', open);
+  $('tabBtn').hidden = open;
+}
+
+// ======================================================== painel
+function goBtn(id) {
+  const n = byId[id], l = labelOf(id) || 'raiz';
+  return `<button class="go l-${n.lang}" type="button" data-go="${id}"><b>${l}</b>${esc(n.name)}</button>`;
+}
+function idleView() {
+  panel.className = 'panel';
+  panel.innerHTML = `<div class="p-top"><p class="eyebrow" style="margin:0">Como ler</p><button class="x" type="button" data-close aria-label="Fechar painel">×</button></div>
+    <h2>Um mapa que se abre</h2>
+    <ol>
+      <li><b>Comece pela raiz.</b> O bloco <code>index.html</code> se divide nas três linguagens e nos bastidores, que é o que fica fora do arquivo.</li>
+      <li><b>Clique para abrir.</b> Os blocos com <b>+</b> têm blocos dentro. Um clique abre o ramo e mostra a explicação aqui. Um segundo clique no mesmo bloco fecha o ramo.</li>
+      <li><b>Siga os fios rosa.</b> Eles ligam o bloco escolhido aos blocos com que ele conversa. Se um deles estiver num ramo fechado, o ramo se abre sozinho.</li>
+      <li><b>Mova à vontade.</b> Arraste o fundo para andar pelo mapa, use a roda do mouse ou a pinça para dar zoom e arraste um bloco para tirá-lo do caminho. <b>Recolher tudo</b> desfaz tudo isso.</li>
+    </ol>
+    <h3>Bons pontos de partida</h3>
+    <div class="chips">${['root', 'J8', 'J3.2', 'C2', 'J3.5'].map(goBtn).join('')}</div>
+    <h3>Ou veja tudo em movimento</h3>
+    <p><b>Siga um quadro</b> leva um ponto rosa pelos blocos que trabalham durante 16,7 ms de jogo com a tecla D apertada.</p>`;
+}
+function renderPanel(id) {
+  if (!id) { idleView(); return; }
+  const n = byId[id], lbl = labelOf(id);
+  panel.className = 'panel l-' + n.lang;
+  const grpName = n.grp && n.grp !== n.id ? ' · ' + GROUPS.find(g => g.id === n.grp).name : '';
+  const pill = id === 'root' ? 'raiz' : BIG[id] ? n.tag : n.isGroup ? `${n.tag} · grupo` : `${n.id}${grpName}`;
+  let h = `<div class="p-top"><span class="pill">${esc(pill)}</span><button class="x" type="button" data-close aria-label="Fechar painel">×</button></div>`;
+  h += `<h2>${esc(n.name)}</h2><p class="meta"><span>${esc(n.lines || '')}</span>${(n.code || []).map(c => `<code>${esc(c)}</code>`).join('')}</p>`;
+  h += `<h3>O que faz</h3><p class="what">${esc(n.what)}</p>`;
+  h += `<h3>Como faz</h3><div class="how">${n.how}</div>`;
+  if (n.fig === 'fbm') h += demoFbm();
+  else if (n.fig && FIGS[n.fig]) { const f = FIGS[n.fig](); h += `<figure class="fx">${f.svg}<figcaption>${f.cap}</figcaption></figure>`; }
+  if (T[id].kids.length) h += `<h3>Blocos dentro</h3><div class="chips">${T[id].kids.map(goBtn).join('')}</div>`;
+  if (n.links && n.links.length) h += `<h3>Conversa com</h3><ul class="rel">${n.links.map(([t, why]) => `<li>${goBtn(t)}<span>${esc(why)}</span></li>`).join('')}</ul>`;
+  const i = ORDER.indexOf(id);
+  if (i >= 0) {
+    const p = ORDER[i - 1], q = ORDER[i + 1];
+    h += `<nav class="pn">${p ? `<button type="button" data-go="${p}">← ${p} ${esc(byId[p].name)}</button>` : '<span></span>'}${q ? `<button type="button" data-go="${q}">${q} ${esc(byId[q].name)} →</button>` : '<span></span>'}</nav>`;
+  }
+  panel.innerHTML = h; panel.scrollTop = 0;
+  wireFbm();
+}
+panel.addEventListener('click', e => {
+  if (e.target.closest('[data-close]')) { setPanel(false); return; }
+  const g = e.target.closest('[data-go]'); if (g) select(g.dataset.go);
+});
+$('tabBtn').addEventListener('click', () => { if (!sel) idleView(); setPanel(true); });
+
+// ======================================================== botões do mapa
+$('zIn').addEventListener('click', () => { const r = svg.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, view.k * 1.25); });
+$('zOut').addEventListener('click', () => { const r = svg.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, view.k / 1.25); });
+$('fitBtn').addEventListener('click', () => frame([...VIS], { fit: true }));
+$('foldBtn').addEventListener('click', () => {
+  if (tracing) stopTrace();
+  for (const id in T) { T[id].open = id === 'root'; T[id].off.x = T[id].off.y = 0; }
+  sel = null; renderPanel(null);
+  relayout(true, () => frame([...VIS], { fit: true }));
+});
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (tracing) stopTrace(); else if (box.classList.contains('panel-open') && narrow()) setPanel(false); else if (sel) select(null);
+});
+
+// ======================================================== siga um quadro
+let tracing = false, ti = 0, timer = null, dotPos = null, dotRaf = null;
+function center(id) { const p = cur[id] || TG[id]; return { x: p.x + W[T[id].d] / 2, y: p.y }; }
+function moveDot(toId) {
+  const to = center(toId);
+  dotEl.style.display = '';
+  if (dotRaf) cancelAnimationFrame(dotRaf);
+  if (!dotPos || reduce) { dotPos = to; dotEl.setAttribute('cx', to.x); dotEl.setAttribute('cy', to.y); return; }
+  const from = { ...dotPos }, t0 = performance.now(), D = 700, lift = Math.min(120, Math.hypot(to.x - from.x, to.y - from.y) * 0.25);
+  const f = now => {
+    const k = Math.min(1, (now - t0) / D), e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    const x = from.x + (to.x - from.x) * e, y = from.y + (to.y - from.y) * e - Math.sin(Math.PI * e) * lift;
+    dotEl.setAttribute('cx', x.toFixed(1)); dotEl.setAttribute('cy', y.toFixed(1));
+    if (k < 1) dotRaf = requestAnimationFrame(f); else { dotRaf = null; dotPos = to; }
+  };
+  dotRaf = requestAnimationFrame(f);
+}
+function showStep(i) {
+  ti = Math.max(0, Math.min(TRACE.length - 1, i));
+  const st = TRACE[ti];
+  $('trN').textContent = ti + 1; $('trT').textContent = TRACE.length;
+  $('trH').textContent = st.h; $('trP').textContent = st.p;
+  $('trBar').style.width = ((ti + 1) / TRACE.length * 100) + '%';
+  lit = new Set(st.n); st.n.forEach(openAnc);
+  select(st.n[0], { openLinks: false, showPanel: !narrow(), after: () => { frame(st.n, { onlyIfNeeded: false }); moveDot(st.n[0]); } });
+}
+function startTrace() { tracing = true; $('trace').hidden = false; $('traceBtn').textContent = '↺ Recomeçar'; dotPos = null; showStep(0); }
+function stopTrace() {
+  pause(); tracing = false; $('trace').hidden = true; lit = new Set(); dotEl.style.display = 'none'; dotPos = null;
+  $('traceBtn').textContent = '▶ Siga um quadro'; updateClasses();
+}
+function pause() { if (timer) { clearInterval(timer); timer = null; $('trPlay').textContent = 'Auto'; } }
+$('traceBtn').addEventListener('click', () => { pause(); startTrace(); });
+$('trPrev').addEventListener('click', () => { pause(); showStep(ti - 1); });
+$('trNext').addEventListener('click', () => { pause(); showStep(ti + 1); });
+$('trExit').addEventListener('click', stopTrace);
+$('trPlay').addEventListener('click', () => {
+  if (timer) { pause(); return; }
+  $('trPlay').textContent = 'Parar';
+  timer = setInterval(() => { if (ti >= TRACE.length - 1) { pause(); return; } showStep(ti + 1); }, 3800);
+});
+
+// ======================================================== início
+$('vocab').innerHTML = VOCAB.map(([t, d]) => `<div><dt>${t}</dt><dd>${d}</dd></div>`).join('');
+if (narrow()) setPanel(false);
+idleView();
+relayout(false);
+frame([...VIS], { fit: true, maxK: 1, instant: true });
+let rz = null;
+window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => frame(sel ? [sel] : [...VIS], { onlyIfNeeded: true }), 150); });
+})();
+</script>
