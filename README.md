@@ -29,6 +29,8 @@ Os jatos são presos ao casco: "direita" é a direita do módulo, não da tela.
 
 O botão **Anatomia do jogo** abre, em outra aba, um mapa interativo da estrutura do código: o HTML, o CSS e o JavaScript divididos em blocos pelo que fazem, com a explicação de como cada um faz e com quais outros conversa.
 
+O botão **Coletor de Amostras** abre, em outra aba, o outro jogo da série: https://kevinscoutinho.github.io/Coletor_de_amostras/
+
 O botão **Física do jogo** abre um manual didático, escrito para estudantes do ensino médio, com 25 equações e 10 diagramas. Os limites reais de acoplamento citados vêm de: NASA, *International Docking System Standard (IDSS) Interface Definition Document*, Rev. F (2022), Tabela 3.3.1.1-2.
 
 **Simplificações:** os jatos são mais fortes que jatos reais de gás frio, para o jogo não ficar lento; os efeitos de mecânica orbital entre objetos próximos são ignorados; e as rochas colidem como esferas sem atrito.

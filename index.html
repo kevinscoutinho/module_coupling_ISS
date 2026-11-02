@@ -242,6 +242,7 @@ figcaption b { color: var(--ink); }
   <div id="tools" class="hud">
     <button class="btn" id="bPhy"><kbd>F</kbd>Física do jogo</button>
     <a class="btn" id="bAnat" href="anatomia-acoplamento-iss.html" target="_blank" rel="noopener" title="Abre o mapa de blocos do código em outra aba">Anatomia do jogo ↗</a>
+    <a class="btn" id="bColetor" href="https://kevinscoutinho.github.io/Coletor_de_amostras/" target="_blank" rel="noopener" title="Abre o jogo Coletor de Amostras em outra aba">Coletor de Amostras ↗</a>
     <button class="btn" id="bAst" aria-pressed="true"><kbd>T</kbd>Asteroides: <span id="astState">ligados</span></button>
     <button class="btn" id="bPause"><kbd>P</kbd>Pausa</button>
     <button class="btn" id="bSound"><kbd>M</kbd>Som</button>
@@ -1210,6 +1211,7 @@ $('bReset').addEventListener('click', () => { if (state !== 'intro') start(); })
 $('bPause').addEventListener('click', togglePause);
 $('bSound').addEventListener('click', toggleSound);
 $('bAnat').addEventListener('click', () => { if (state === 'play' && !paused) togglePause(); });   // abre a anatomia em outra aba e pausa a partida
+$('bColetor').addEventListener('click', () => { if (state === 'play' && !paused) togglePause(); });   // abre o outro jogo em outra aba e pausa a partida
 function togglePause() {
   if (state !== 'play') return; paused = !paused;
   $('bPause').innerHTML = paused ? '<kbd>P</kbd>Continuar' : '<kbd>P</kbd>Pausa';
